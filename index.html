@@ -7,15 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal) -->
-    <!-- Application Structure Plan: A single-page application featuring three main views managed by JavaScript: 1) A national view with an interactive list for initial prefecture selection. 2) A results view displaying a filterable list of facilities alongside a regional map. 3) A modal view for detailed facility information. This task-oriented flow (Find -> Filter -> View Details) avoids page reloads, providing a seamless and efficient user experience. The structure is designed to guide users logically from a broad overview to specific details, which is ideal for a location-based search portal. -->
-    <!-- Visualization & Content Choices:
-        - Report Info: Hierarchical navigation (Nation -> Prefecture -> City). Goal: Organize/Guide. Viz/Method: A simple list of prefectures for initial selection, followed by dynamic lists for cities and facilities. Interaction: Clicks on list items filter the dataset. Justification: Straightforward and avoids complex map rendering issues. Method: HTML/CSS/JS.
-        - Report Info: Facility listings. Goal: Compare/Inform. Viz/Method: Standardized cards with key data points (name, features, image). Interaction: Clicking a card opens a detailed modal. Justification: Cards are scannable and provide at-a- glance comparisons. Method: HTML/JS template.
-        - Report Info: Filtering criteria (age, services). Goal: Organize/Filter. Viz/Method: Checkboxes and dropdowns in a dedicated sidebar. Interaction: Selections dynamically update the facility list in real-time. Justification: Gives users direct control over results. Method: HTML/JS.
-        - Report Info: Service type distribution. Goal: Compare proportions. Viz/Method: A donut chart. Interaction: Hover to see details. Justification: Provides a quick visual summary of service availability in the area. Library: Chart.js.
-    -->
-    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
         .fade-in { animation: fadeIn 0.5s ease-in-out; }
@@ -24,6 +15,8 @@
         .page.active { display: block; animation: fadeIn 0.3s; }
         .facility-card { transition: transform 0.2s, box-shadow 0.2s; }
         .facility-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+        .modal { display: none; }
+        .modal.active { display: flex; }
     </style>
 </head>
 <body class="bg-stone-50 text-stone-800">
@@ -37,6 +30,8 @@
             <div class="hidden md:flex items-center space-x-6">
                 <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="home">ホーム</a>
                 <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="results">施設を探す</a>
+                <button id="login-button" class="bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition">ログイン</button>
+                <button id="logout-button" class="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition hidden">ログアウト</button>
             </div>
             <button id="mobile-menu-button" class="md:hidden">
                 <i class="fas fa-bars text-2xl"></i>
@@ -45,6 +40,8 @@
         <div id="mobile-menu" class="hidden md:hidden bg-white py-2">
              <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="home">ホーム</a>
              <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="results">施設を探す</a>
+             <button id="mobile-login-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100">ログイン</button>
+             <button id="mobile-logout-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100 hidden">ログアウト</button>
         </div>
     </header>
 
@@ -54,6 +51,9 @@
                 <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 text-center">
                     <h2 class="text-3xl md:text-5xl font-extrabold text-cyan-700 mb-4">お子さまに最適な場所を、一緒に。</h2>
                     <p class="text-lg text-stone-600 max-w-3xl mx-auto">全国の放課後等デイサービスから、ご希望の地域やサービス内容で簡単に検索できます。まずは下のリストからお住まいの都道府県を選択してください。</p>
+                    <button id="open-add-facility-modal" class="mt-8 bg-green-600 text-white py-3 px-6 rounded-md shadow-lg hover:bg-green-700 transition transform hover:scale-105 hidden">
+                        <i class="fas fa-plus-circle mr-2"></i> 新しい事業所を登録する
+                    </button>
                 </div>
             </section>
 
@@ -114,6 +114,7 @@
         </div>
     </main>
 
+    <!-- Facility Detail Modal -->
     <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
         <div id="modal-content" class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
@@ -127,8 +128,7 @@
                         <h3 class="text-lg font-bold mb-2 border-b pb-1">基本情報</h3>
                         <p id="modal-address" class="text-stone-600 mb-2"></p>
                         <p id="modal-tel" class="text-stone-600 mb-2"></p>
-                        <a id="modal-website" href="#" target="_blank" class="text-cyan-600 hover:underline">ウェブサイトを見る <i class="fas fa-external-link-alt text-xs"></i></a>
-                        <!-- 新しい動画説明会リンクを追加 -->
+                        <a id="modal-website" href="#" target="_blank" class="text-cyan-600 hover:underline hidden">ウェブサイトを見る <i class="fas fa-external-link-alt text-xs"></i></a>
                         <a id="modal-video-seminar" href="#" target="_blank" class="block mt-2 text-cyan-600 hover:underline">動画説明会の申込みはこちら！ <i class="fas fa-video text-xs"></i></a>
                     </div>
                     <div>
@@ -144,41 +144,332 @@
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="login-modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-slate-700">管理者ログイン</h2>
+                <button id="login-modal-close" class="text-2xl text-stone-500 hover:text-stone-800">&times;</button>
+            </div>
+            <div class="overflow-y-auto p-6">
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label for="login-email" class="block text-sm font-medium text-stone-700">メールアドレス</label>
+                        <input type="email" id="login-email" name="email" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm font-medium text-stone-700">パスワード</label>
+                        <input type="password" id="login-password" name="password" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 focus:ring-slate-500">
+                    </div>
+                    <button type="submit" class="w-full bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition">ログイン</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Facility Modal -->
+    <div id="add-facility-modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-cyan-700">新しい事業所を登録</h2>
+                <button id="add-facility-modal-close" class="text-2xl text-stone-500 hover:text-stone-800">&times;</button>
+            </div>
+            <div class="overflow-y-auto p-6">
+                <form id="add-facility-form" class="space-y-4">
+                    <div>
+                        <label for="add-facility-name" class="block text-sm font-medium text-stone-700">事業所名</label>
+                        <input type="text" id="add-facility-name" name="name" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="add-facility-prefecture" class="block text-sm font-medium text-stone-700">都道府県</label>
+                        <select id="add-facility-prefecture" name="prefecture" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></select>
+                    </div>
+                    <div>
+                        <label for="add-facility-city" class="block text-sm font-medium text-stone-700">市区町村</label>
+                        <select id="add-facility-city" name="city" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></select>
+                    </div>
+                    <div>
+                        <label for="add-facility-address" class="block text-sm font-medium text-stone-700">詳細住所</label>
+                        <input type="text" id="add-facility-address" name="address" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="add-facility-tel" class="block text-sm font-medium text-stone-700">電話番号</label>
+                        <input type="tel" id="add-facility-tel" name="tel" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="add-facility-website" class="block text-sm font-medium text-stone-700">ウェブサイトURL</label>
+                        <input type="url" id="add-facility-website" name="website" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="add-facility-videoSeminarLink" class="block text-sm font-medium text-stone-700">動画説明会リンク</label>
+                        <input type="url" id="add-facility-videoSeminarLink" name="videoSeminarLink" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="add-facility-description" class="block text-sm font-medium text-stone-700">施設の特徴・説明</label>
+                        <textarea id="add-facility-description" name="description" rows="3" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="add-facility-image" class="block text-sm font-medium text-stone-700">画像URL</label>
+                        <input type="url" id="add-facility-image" name="image" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">提供サービス</label>
+                        <div id="add-facility-services" class="mt-1 grid grid-cols-2 gap-2"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">対象年齢</label>
+                        <div id="add-facility-ages" class="mt-1 grid grid-cols-2 gap-2"></div>
+                    </div>
+                    <button type="submit" class="w-full bg-cyan-600 text-white py-2 px-4 rounded-md hover:bg-cyan-700 transition">登録する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Facility Modal -->
+    <div id="edit-facility-modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 class="text-2xl font-bold text-cyan-700">事業所情報を編集</h2>
+                <button id="edit-facility-modal-close" class="text-2xl text-stone-500 hover:text-stone-800">&times;</button>
+            </div>
+            <div class="overflow-y-auto p-6">
+                <form id="edit-facility-form" class="space-y-4">
+                    <input type="hidden" id="edit-facility-id" name="id">
+                    <div>
+                        <label for="edit-facility-name" class="block text-sm font-medium text-stone-700">事業所名</label>
+                        <input type="text" id="edit-facility-name" name="name" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="edit-facility-prefecture" class="block text-sm font-medium text-stone-700">都道府県</label>
+                        <select id="edit-facility-prefecture" name="prefecture" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></select>
+                    </div>
+                    <div>
+                        <label for="edit-facility-city" class="block text-sm font-medium text-stone-700">市区町村</label>
+                        <select id="edit-facility-city" name="city" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></select>
+                    </div>
+                    <div>
+                        <label for="edit-facility-address" class="block text-sm font-medium text-stone-700">詳細住所</label>
+                        <input type="text" id="edit-facility-address" name="address" required class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="edit-facility-tel" class="block text-sm font-medium text-stone-700">電話番号</label>
+                        <input type="tel" id="edit-facility-tel" name="tel" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="edit-facility-website" class="block text-sm font-medium text-stone-700">ウェブサイトURL</label>
+                        <input type="url" id="edit-facility-website" name="website" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                     <div>
+                        <label for="edit-facility-videoSeminarLink" class="block text-sm font-medium text-stone-700">動画説明会リンク</label>
+                        <input type="url" id="edit-facility-videoSeminarLink" name="videoSeminarLink" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label for="edit-facility-description" class="block text-sm font-medium text-stone-700">施設の特徴・説明</label>
+                        <textarea id="edit-facility-description" name="description" rows="3" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"></textarea>
+                    </div>
+                    <div>
+                        <label for="edit-facility-image" class="block text-sm font-medium text-stone-700">画像URL</label>
+                        <input type="url" id="edit-facility-image" name="image" class="mt-1 block w-full rounded-md border-stone-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">提供サービス</label>
+                        <div id="edit-facility-services" class="mt-1 grid grid-cols-2 gap-2"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-stone-700">対象年齢</label>
+                        <div id="edit-facility-ages" class="mt-1 grid grid-cols-2 gap-2"></div>
+                    </div>
+                    <button type="submit" class="w-full bg-cyan-600 text-white py-2 px-4 rounded-md hover:bg-cyan-700 transition">更新する</button>
+                    <button type="button" id="delete-facility-btn" class="w-full mt-2 bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition">この事業所を削除する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirm-delete-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6 text-center">
+            <p class="text-lg font-bold mb-4">本当にこの事業所を削除しますか？</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirm-delete-btn" class="bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition">削除する</button>
+                <button id="cancel-delete-btn" class="bg-stone-400 text-white py-2 px-4 rounded-md hover:bg-stone-500 transition">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
     <footer class="bg-stone-800 text-white mt-12">
         <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
             <p>&copy; 2025 全国放課後等デイサービスナビ. All Rights Reserved.</p>
         </div>
     </footer>
 
+    <!-- Application Logic -->
+    <script type="module">
+        let isAdmin = false; // Flag to check if the current user is an administrator
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const prefectureListContainer = document.getElementById('prefecture-list');
-        const resultsTitle = document.getElementById('results-title');
-        const facilityList = document.getElementById('facility-list');
-        const serviceFilter = document.getElementById('service-filter');
-        const ageFilter = document.getElementById('age-filter');
-        const resultsCityFilter = document.getElementById('results-city-filter');
-        const noResults = document.getElementById('no-results');
-        const resetFiltersBtn = document.getElementById('reset-filters');
-        const facilityCountElement = document.getElementById('facility-count'); // 該当施設数を表示する要素
+        // Global variables for DOM elements (will be assigned in initApp)
+        let prefectureListContainer;
+        let resultsTitle;
+        let facilityList;
+        let serviceFilter;
+        let ageFilter;
+        let resultsCityFilter;
+        let noResults;
+        let resetFiltersBtn;
+        let facilityCountElement;
+        let modalContainer;
+        let modalContent;
+        let modalClose;
+        let modalVideoSeminar;
+        let addFacilityModalContainer;
+        let addFacilityModalClose;
+        let addFacilityForm;
+        let openAddFacilityModalBtn;
+        let addFacilityPrefectureSelect;
+        let addFacilityCitySelect;
+        let addFacilityServicesCheckboxes;
+        let addFacilityAgesCheckboxes;
+        let editFacilityModalContainer;
+        let editFacilityModalClose;
+        let editFacilityForm;
+        let editFacilityIdInput;
+        let editFacilityPrefectureSelect;
+        let editFacilityCitySelect;
+        let editFacilityServicesCheckboxes;
+        let editFacilityAgesCheckboxes;
+        let deleteFacilityBtn;
+        let confirmDeleteModal;
+        let confirmDeleteBtn;
+        let cancelDeleteBtn;
+        let loginModalContainer;
+        let loginModalClose;
+        let loginForm;
+        let loginButton;
+        let logoutButton;
+        let mobileLoginButton;
+        let mobileLogoutButton;
+        let pages;
+        let navLinks;
+        let mobileMenuButton;
+        let mobileMenu;
 
-        const modalContainer = document.getElementById('modal-container');
-        const modalContent = document.getElementById('modal-content');
-        const modalClose = document.getElementById('modal-close');
-        const modalVideoSeminar = document.getElementById('modal-video-seminar'); // 新しいリンク要素を取得
-
-        const pages = document.querySelectorAll('.page');
-        const navLinks = document.querySelectorAll('.nav-link');
-
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-
-        mobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-        });
-
-        let allFacilities = [];
+        // Client-side data storage (NOT persistent - data will be lost on refresh)
+        let allFacilities = [
+            {
+                id: '1',
+                name: '札幌わくわく教室',
+                prefecture: '北海道',
+                city: '札幌市',
+                address: '中央区大通西1丁目',
+                tel: '011-123-4567',
+                website: 'https://example.com/sapporo-wakuwaku',
+                videoSeminarLink: 'https://youtube.com/watch?v=sapporo',
+                description: '学習支援に力を入れた放課後等デイサービスです。個別指導で学力向上をサポートします。',
+                image: 'https://placehold.co/600x400/a2d2ff/000000?text=Sapporo+Wakuwaku',
+                services: ['学習支援', '送迎あり'],
+                ages: ['小学生', '中学生']
+            },
+            {
+                id: '2',
+                name: '函館のびのびクラブ',
+                prefecture: '北海道',
+                city: '函館市',
+                address: '五稜郭町44',
+                tel: '0138-98-7654',
+                website: 'https://example.com/hakodate-nobinobi',
+                videoSeminarLink: 'https://youtube.com/watch?v=hakodate',
+                description: '運動特化型のデイサービスで、広い体育館で体を動かすプログラムが豊富です。',
+                image: 'https://placehold.co/600x400/bde0fe/000000?text=Hakodate+Nobinobi',
+                services: ['運動特化', '送迎あり'],
+                ages: ['未就学児', '小学生']
+            },
+            {
+                id: '3',
+                name: '旭川アートラボ',
+                prefecture: '北海道',
+                city: '旭川市',
+                address: '宮下通7丁目',
+                tel: '0166-55-1122',
+                website: 'https://example.com/asahikawa-artlab',
+                videoSeminarLink: '',
+                description: '創作活動を通じて自己表現を育むアートに特化したデイサービスです。',
+                image: 'https://placehold.co/600x400/cddafd/000000?text=Asahikawa+ArtLab',
+                services: ['創作活動'],
+                ages: ['小学生', '中学生', '高校生']
+            },
+            {
+                id: '4',
+                name: '青森りんごの家',
+                prefecture: '青森',
+                city: '青森市',
+                address: '新町1丁目',
+                tel: '017-111-2222',
+                website: 'https://example.com/aomori-ringo',
+                videoSeminarLink: '',
+                description: 'SST（ソーシャルスキルトレーニング）に力を入れています。',
+                image: 'https://placehold.co/600x400/ffc8dd/000000?text=Aomori+Ringo',
+                services: ['SST', '送迎あり'],
+                ages: ['小学生']
+            },
+             {
+                id: '5',
+                name: '仙台未来学習塾',
+                prefecture: '宮城',
+                city: '仙台市',
+                address: '青葉区中央2丁目',
+                tel: '022-333-4444',
+                website: 'https://example.com/sendai-mirai',
+                videoSeminarLink: 'https://youtube.com/watch?v=sendai',
+                description: '個別学習支援とプログラミング教育に特化した施設です。',
+                image: 'https://placehold.co/600x400/a2d2ff/000000?text=Sendai+Mirai',
+                services: ['学習支援', 'PCスキル'],
+                ages: ['中学生', '高校生']
+            },
+            {
+                id: '6',
+                name: '東京スマイルラボ',
+                prefecture: '東京',
+                city: '世田谷区',
+                address: '世田谷区桜新町2丁目',
+                tel: '03-1234-5678',
+                website: 'https://example.com/tokyo-smile',
+                videoSeminarLink: 'https://youtube.com/watch?v=tokyo',
+                description: '多様なプログラムを提供する総合的な放課後等デイサービスです。',
+                image: 'https://placehold.co/600x400/bde0fe/000000?text=Tokyo+Smile',
+                services: ['学習支援', '運動特化', 'SST', '送迎あり'],
+                ages: ['未就学児', '小学生', '中学生', '高校生']
+            },
+            {
+                id: '7',
+                name: '横浜チャレンジクラブ',
+                prefecture: '神奈川',
+                city: '横浜市',
+                address: '中区山下町1丁目',
+                tel: '045-987-6543',
+                website: 'https://example.com/yokohama-challenge',
+                videoSeminarLink: '',
+                description: 'スポーツと地域交流を重視した活動を行っています。',
+                image: 'https://placehold.co/600x400/cddafd/000000?text=Yokohama+Challenge',
+                services: ['運動特化', '送迎あり'],
+                ages: ['小学生', '中学生']
+            },
+            {
+                id: '8',
+                name: '名古屋クリエイティブハウス',
+                prefecture: '愛知',
+                city: '名古屋市',
+                address: '中区栄3丁目',
+                tel: '052-222-3333',
+                website: 'https://example.com/nagoya-creative',
+                videoSeminarLink: 'https://youtube.com/watch?v=nagoya',
+                description: 'アートと音楽活動に特化し、創造性を育みます。',
+                image: 'https://placehold.co/600x400/ffc8dd/000000?text=Nagoya+Creative',
+                services: ['創作活動'],
+                ages: ['未就学児', '小学生']
+            }
+        ];
+        let currentEditingFacilityId = null; // For edit/delete operations
         let currentState = {
             prefecture: null,
             city: [],
@@ -186,7 +477,10 @@
             ages: []
         };
 
-        // 都道府県のリスト
+        // Hardcoded admin credentials for client-side only (NOT secure for production)
+        const ADMIN_EMAIL = "admin@example.com";
+        const ADMIN_PASSWORD = "password"; // Please change this in a real application!
+
         const prefectures = [
             { id: 1, name: "北海道" }, { id: 2, name: "青森" }, { id: 3, name: "岩手" },
             { id: 4, name: "宮城" }, { id: 5, name: "秋田" }, { id: 6, name: "山形" },
@@ -205,7 +499,6 @@
             { id: 43, name: "熊本" }, { id: 44, name: "大分" }, { id: 45, name: "宮崎" },
             { id: 46, name: "鹿児島" }, { id: 47, name: "沖縄" }
         ];
-
 
         const serviceTypes = ["学習支援", "運動特化", "SST", "創作活動", "PCスキル", "送迎あり"];
         const ageGroups = ["未就学児", "小学生", "中学生", "高校生"];
@@ -260,134 +553,45 @@
             "沖縄": ["那覇市", "沖縄市", "浦添市", "うるま市", "宜野湾市", "名護市", "豊見城市", "石垣市", "宮古島市", "糸満市", "その他自治体"]
         };
 
-        const generateMockData = () => {
-            const data = [];
-            let idCounter = 1;
-            for (const pref of Object.keys(citiesByPrefecture)) {
-                // Exclude "Other municipalities" for actual facility generation
-                const actualCities = citiesByPrefecture[pref].filter(city => city !== "その他自治体");
-                for (const city of actualCities) {
-                    for (let i = 0; i < Math.floor(Math.random() * 10) + 3; i++) {
-                        const facilityServices = [...new Set(Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => serviceTypes[Math.floor(Math.random() * serviceTypes.length)]))];
-                        const facilityAges = [...new Set(Array.from({ length: Math.floor(Math.random() * 2) + 1 }, () => ageGroups[Math.floor(Math.random() * ageGroups.length)]))];
-                        data.push({
-                            id: idCounter++,
-                            name: `${city}すくすく${i+1}園`,
-                            prefecture: pref,
-                            city: city, // Facilities are tied to specific municipalities
-                            address: `${city}〇〇町${i+1}-${i+1}-${i+1}`,
-                            tel: `00-0000-000${i}`,
-                            website: '#',
-                            // 仮の動画説明会リンクを追加
-                            videoSeminarLink: 'https://example.com/video-seminar', // ここに実際のリンクを設定
-                            description: `${city}にある放課後等デイサービスです。${facilityServices.join('や')}に力を入れています。お子さま一人ひとりの個性を大切にし、自立をサポートします。`,
-                            services: facilityServices,
-                            ages: facilityAges,
-                            image: `https://placehold.co/600x400/a5f3fc/0891b2?text=${pref.slice(0,1)}${city.slice(0,1)}${i+1}園`
-                        });
-                    }
+        // Function to populate select options
+        const populateSelect = (selectElement, options, selectedValue = null) => {
+            selectElement.innerHTML = '<option value="">選択してください</option>';
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.name || option;
+                opt.textContent = option.name || option;
+                if (selectedValue && opt.value === selectedValue) {
+                    opt.selected = true;
                 }
-            }
-            return data;
+                selectElement.appendChild(opt);
+            });
         };
 
-        const setupFilters = () => {
-            serviceTypes.forEach(type => {
+        // Function to populate checkboxes
+        const populateCheckboxes = (containerElement, items, dataFilterName, selectedItems = []) => {
+            containerElement.innerHTML = '';
+            items.forEach(item => {
                 const div = document.createElement('div');
-                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 filter-checkbox" data-filter="services" value="${type}"><span>${type}</span></label>`;
-                serviceFilter.appendChild(div);
-            });
-
-            ageGroups.forEach(age => {
-                 const div = document.createElement('div');
-                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 filter-checkbox" data-filter="ages" value="${age}"><span>${age}</span></label>`;
-                ageFilter.appendChild(div);
-            });
-
-            document.querySelectorAll('.filter-checkbox').forEach(cb => {
-                cb.addEventListener('change', handleFilterChange);
+                const isChecked = selectedItems.includes(item);
+                div.innerHTML = `
+                    <label class="flex items-center space-x-2 text-stone-600">
+                        <input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 ${dataFilterName}-checkbox" data-filter="${dataFilterName}" value="${item}" ${isChecked ? 'checked' : ''}>
+                        <span>${item}</span>
+                    </label>
+                `;
+                containerElement.appendChild(div);
             });
         };
 
-        const setupNavigation = () => {
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = e.currentTarget.dataset.target;
-
-                    if (targetId === 'results' && !currentState.prefecture) {
-                        alert('まず都道府県を選択してください。');
-                        return;
-                    }
-
-                    pages.forEach(page => {
-                        if (page.id === `${targetId}-page`) {
-                            page.classList.add('active');
-                        } else {
-                            page.classList.remove('active');
-                        }
-                    });
-                     if (mobileMenu.classList.contains('hidden') === false) {
-                        mobileMenu.classList.add('hidden');
-                    }
-                });
-            });
-        };
-
-        const setupModal = () => {
-            modalClose.addEventListener('click', () => modalContainer.classList.add('hidden'));
-            modalContainer.addEventListener('click', (e) => {
-                if(e.target === modalContainer) {
-                    modalContainer.classList.add('hidden');
-                }
-            });
-        };
-
-        const selectPrefecture = (prefName) => {
-            if (!prefName || !citiesByPrefecture[prefName]) {
-                console.warn(`City data missing for prefecture: ${prefName}`);
-                alert(`「${prefName}」のデータは現在準備中です。`);
+        // Function to render facility results
+        const renderResults = () => {
+            if (!currentState.prefecture) {
+                facilityList.innerHTML = '';
+                noResults.classList.remove('hidden');
+                facilityCountElement.textContent = `0件`;
                 return;
             }
-            currentState.prefecture = prefName;
 
-            updateCityFilter();
-            renderResults();
-
-            pages.forEach(page => page.classList.remove('active'));
-            document.getElementById('results-page').classList.add('active');
-        };
-
-        const updateCityFilter = () => {
-            resultsCityFilter.innerHTML = '';
-            const cities = citiesByPrefecture[currentState.prefecture] || [];
-            cities.forEach(city => {
-                const div = document.createElement('div');
-                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 city-filter-checkbox" value="${city}"><span>${city}</span></label>`;
-                resultsCityFilter.appendChild(div);
-            });
-             document.querySelectorAll('.city-filter-checkbox').forEach(cb => {
-                cb.addEventListener('change', handleFilterChange);
-            });
-        };
-
-        const handleFilterChange = () => {
-            currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
-            currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
-            currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
-            renderResults();
-        };
-
-        const resetFilters = () => {
-            currentState.city = [];
-            currentState.services = [];
-            currentState.ages = [];
-            document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
-            renderResults();
-        };
-
-        const renderResults = () => {
-            if (!currentState.prefecture) return;
             resultsTitle.textContent = `${currentState.prefecture}の放課後等デイサービス`;
 
             let filteredFacilities = allFacilities.filter(f => f.prefecture === currentState.prefecture);
@@ -397,15 +601,13 @@
             const hasSpecificCitiesSelected = citiesToFilterBy.some(city => city !== "その他自治体");
 
             if (hasOtherMunicipalitiesSelected && !hasSpecificCitiesSelected) {
-                // If only "Other municipalities" is selected, show all facilities in the prefecture (disable city filter)
                 citiesToFilterBy = [];
             } else if (hasOtherMunicipalitiesSelected && hasSpecificCitiesSelected) {
-                // If "Other municipalities" and specific cities are selected, filter only by specific cities
                 citiesToFilterBy = citiesToFilterBy.filter(city => city !== "その他自治体");
             }
 
             if (citiesToFilterBy.length > 0) {
-                 filteredFacilities = filteredFacilities.filter(f => citiesToFilterBy.includes(f.city));
+                filteredFacilities = filteredFacilities.filter(f => citiesToFilterBy.includes(f.city));
             }
             if (currentState.services.length > 0) {
                 filteredFacilities = filteredFacilities.filter(f => currentState.services.every(s => f.services.includes(s)));
@@ -422,15 +624,29 @@
                     const card = document.createElement('div');
                     card.className = 'facility-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer fade-in';
                     card.innerHTML = `
-                        <img src="${facility.image}" alt="${facility.name}" class="w-full h-40 object-cover">
+                        <img src="${facility.image || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image'}" alt="${facility.name}" class="w-full h-40 object-cover">
                         <div class="p-4">
                             <h4 class="font-bold text-lg text-stone-800">${facility.name}</h4>
-                            <p class="text-sm text-stone-500 mb-2"><i class="fas fa-map-marker-alt mr-1"></i>${facility.prefecture}${facility.city}</p>
+                            <p class="text-sm text-stone-500 mb-2"><i class="fas fa-map-marker-alt mr-1"></i>${facility.prefecture}${facility.address}</p>
                             <div class="flex flex-wrap gap-1 mt-2">
-                                ${facility.services.map(s => `<span class="bg-cyan-100 text-cyan-800 text-xs font-semibold px-2 py-1 rounded-full">${s}</span>`).join('')}
+                                ${(facility.services || []).map(s => `<span class="bg-cyan-100 text-cyan-800 text-xs font-semibold px-2 py-1 rounded-full">${s}</span>`).join('')}
+                            </div>
+                            <div class="mt-3 flex justify-end space-x-2 ${isAdmin ? '' : 'hidden'}">
+                                <button class="edit-btn bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition" data-id="${facility.id}">編集</button>
+                                <button class="delete-btn bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition" data-id="${facility.id}">削除</button>
                             </div>
                         </div>
                     `;
+                    // Check if buttons exist before adding event listeners
+                    card.querySelector('.edit-btn')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openEditFacilityModal(facility);
+                    });
+                    card.querySelector('.delete-btn')?.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        currentEditingFacilityId = facility.id;
+                        confirmDeleteModal.classList.remove('hidden');
+                    });
                     card.addEventListener('click', () => openModal(facility));
                     facilityList.appendChild(card);
                 });
@@ -438,54 +654,388 @@
                 noResults.classList.remove('hidden');
                 facilityList.classList.add('hidden');
             }
-            // 該当施設数を更新
             facilityCountElement.textContent = `${filteredFacilities.length}件`;
         };
 
-        const openModal = (facility) => {
-            document.getElementById('modal-title').textContent = facility.name;
-            document.getElementById('modal-image').src = facility.image;
-            document.getElementById('modal-image').alt = facility.name;
-            document.getElementById('modal-address').innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-stone-500"></i>${facility.prefecture}${facility.address}`;
-            document.getElementById('modal-tel').innerHTML = `<i class="fas fa-phone mr-2 text-stone-500"></i>${facility.tel}`;
-            document.getElementById('modal-website').href = facility.website;
-            // 動画説明会リンクを設定
-            modalVideoSeminar.href = facility.videoSeminarLink;
-            modalVideoSeminar.style.display = facility.videoSeminarLink ? 'block' : 'none'; // リンクがあれば表示、なければ非表示
+        // Function to update UI based on authentication status
+        function updateAuthUI() {
+            if (isAdmin) {
+                loginButton.classList.add('hidden');
+                logoutButton.classList.remove('hidden');
+                openAddFacilityModalBtn.classList.remove('hidden'); // Show add button for admin
+                mobileLoginButton.classList.add('hidden');
+                mobileLogoutButton.classList.remove('hidden');
+            } else {
+                loginButton.classList.remove('hidden');
+                logoutButton.classList.add('hidden');
+                openAddFacilityModalBtn.classList.add('hidden'); // Hide add button for non-admin
+                mobileLoginButton.classList.remove('hidden');
+                mobileLogoutButton.classList.add('hidden');
+            }
+            // Re-render results to update edit/delete buttons visibility
+            renderResults();
+        }
 
-            document.getElementById('modal-description').textContent = facility.description;
+        // Main application initialization function, called after the DOM is fully loaded
+        function initApp() {
+            console.log("Application initializing...");
+            // Assign DOM elements to global variables
+            prefectureListContainer = document.getElementById('prefecture-list');
+            resultsTitle = document.getElementById('results-title');
+            facilityList = document.getElementById('facility-list');
+            serviceFilter = document.getElementById('service-filter');
+            ageFilter = document.getElementById('age-filter');
+            resultsCityFilter = document.getElementById('results-city-filter');
+            noResults = document.getElementById('no-results');
+            resetFiltersBtn = document.getElementById('reset-filters');
+            facilityCountElement = document.getElementById('facility-count');
 
-            const servicesEl = document.getElementById('modal-services');
-            servicesEl.innerHTML = facility.services.map(s => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">${s}</span>`).join('');
+            modalContainer = document.getElementById('modal-container');
+            modalContent = document.getElementById('modal-content');
+            modalClose = document.getElementById('modal-close');
+            modalVideoSeminar = document.getElementById('modal-video-seminar');
 
-            const agesEl = document.getElementById('modal-ages');
-            agesEl.innerHTML = facility.ages.map(a => `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${a}</span>`).join('');
+            addFacilityModalContainer = document.getElementById('add-facility-modal-container');
+            addFacilityModalClose = document.getElementById('add-facility-modal-close');
+            addFacilityForm = document.getElementById('add-facility-form');
+            openAddFacilityModalBtn = document.getElementById('open-add-facility-modal');
 
-            modalContainer.classList.remove('hidden');
-        };
+            addFacilityPrefectureSelect = document.getElementById('add-facility-prefecture');
+            addFacilityCitySelect = document.getElementById('add-facility-city');
+            addFacilityServicesCheckboxes = document.getElementById('add-facility-services');
+            addFacilityAgesCheckboxes = document.getElementById('add-facility-ages');
 
-        const init = () => {
-            allFacilities = generateMockData();
+            editFacilityModalContainer = document.getElementById('edit-facility-modal-container');
+            editFacilityModalClose = document.getElementById('edit-facility-modal-close');
+            editFacilityForm = document.getElementById('edit-facility-form');
+            editFacilityIdInput = document.getElementById('edit-facility-id');
+            editFacilityPrefectureSelect = document.getElementById('edit-facility-prefecture');
+            editFacilityCitySelect = document.getElementById('edit-facility-city');
+            editFacilityServicesCheckboxes = document.getElementById('edit-facility-services');
+            editFacilityAgesCheckboxes = document.getElementById('edit-facility-ages');
+            deleteFacilityBtn = document.getElementById('delete-facility-btn');
+            confirmDeleteModal = document.getElementById('confirm-delete-modal');
+            confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 
-            // 都道府県リストの動的生成
-            prefectures.forEach(p => {
-                const prefButton = document.createElement('button');
-                prefButton.className = 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-md shadow transition transform hover:scale-105';
-                prefButton.textContent = p.name;
-                prefButton.dataset.name = p.name;
-                prefButton.addEventListener('click', () => selectPrefecture(p.name));
-                prefectureListContainer.appendChild(prefButton);
+            loginModalContainer = document.getElementById('login-modal-container');
+            loginModalClose = document.getElementById('login-modal-close');
+            loginForm = document.getElementById('login-form');
+            loginButton = document.getElementById('login-button');
+            logoutButton = document.getElementById('logout-button');
+            mobileLoginButton = document.getElementById('mobile-login-button');
+            mobileLogoutButton = document.getElementById('mobile-logout-button');
+
+
+            pages = document.querySelectorAll('.page');
+            navLinks = document.querySelectorAll('.nav-link');
+            mobileMenuButton = document.getElementById('mobile-menu-button');
+            mobileMenu = document.getElementById('mobile-menu');
+
+            // All DOM elements are now assigned. Proceed with event listeners and initial setup.
+
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
             });
 
-            setupFilters();
-            setupNavigation();
-            setupModal();
-            resetFiltersBtn.addEventListener('click', resetFilters);
-        };
+            // Add event listeners for mobile login/logout buttons
+            mobileLoginButton.addEventListener('click', () => {
+                loginModalContainer.classList.remove('hidden');
+                mobileMenu.classList.add('hidden'); // Close mobile menu after clicking login
+            });
 
-        init();
-    });
+            mobileLogoutButton.addEventListener('click', () => {
+                isAdmin = false; // Set admin status to false on logout
+                alert('ログアウトしました。');
+                mobileMenu.classList.add('hidden'); // Close mobile menu after logging out
+                updateAuthUI(); // Update UI after logout
+            });
+
+            const setupFilters = () => {
+                populateCheckboxes(serviceFilter, serviceTypes, 'services');
+                populateCheckboxes(ageFilter, ageGroups, 'ages');
+
+                document.querySelectorAll('.filter-checkbox').forEach(cb => {
+                    cb.addEventListener('change', handleFilterChange);
+                });
+            };
+
+            const setupNavigation = () => {
+                navLinks.forEach(link => {
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const targetId = e.currentTarget.dataset.target;
+
+                        if (targetId === 'results' && !currentState.prefecture) {
+                            alert('まず都道府県を選択してください。');
+                            return;
+                        }
+
+                        pages.forEach(page => {
+                            if (page.id === `${targetId}-page`) {
+                                page.classList.add('active');
+                            } else {
+                                page.classList.remove('active');
+                            }
+                        });
+                        if (mobileMenu.classList.contains('hidden') === false) {
+                            mobileMenu.classList.add('hidden');
+                        }
+                    });
+                });
+            };
+
+            const setupModal = () => {
+                modalClose.addEventListener('click', () => modalContainer.classList.add('hidden'));
+                modalContainer.addEventListener('click', (e) => {
+                    if (e.target === modalContainer) {
+                        modalContainer.classList.add('hidden');
+                    }
+                });
+            };
+
+            const selectPrefecture = (prefName) => {
+                if (!prefName || !citiesByPrefecture[prefName]) {
+                    alert(`「${prefName}」のデータは現在準備中です。`);
+                    return;
+                }
+                currentState.prefecture = prefName;
+                currentState.city = []; // Reset city filter when prefecture changes
+                // No need to uncheck city filters here, updateCityFilter will rebuild them
+                updateCityFilter();
+                renderResults();
+
+                pages.forEach(page => page.classList.remove('active'));
+                document.getElementById('results-page').classList.add('active');
+            };
+
+            const updateCityFilter = () => {
+                resultsCityFilter.innerHTML = '';
+                const cities = citiesByPrefecture[currentState.prefecture] || [];
+                populateCheckboxes(resultsCityFilter, cities, 'city', currentState.city);
+
+                document.querySelectorAll('.city-filter-checkbox').forEach(cb => {
+                    cb.addEventListener('change', handleFilterChange);
+                });
+            };
+
+            const handleFilterChange = () => {
+                currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
+                currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
+                currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
+                renderResults();
+            };
+
+            const resetFilters = () => {
+                currentState.city = [];
+                currentState.services = [];
+                currentState.ages = [];
+                document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
+                renderResults();
+            };
+
+            const openModal = (facility) => {
+                document.getElementById('modal-title').textContent = facility.name;
+                document.getElementById('modal-image').src = facility.image || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+                document.getElementById('modal-image').alt = facility.name;
+                document.getElementById('modal-address').innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-stone-500"></i>${facility.prefecture}${facility.address}`;
+                document.getElementById('modal-tel').innerHTML = `<i class="fas fa-phone mr-2 text-stone-500"></i>${facility.tel}`;
+                document.getElementById('modal-website').href = facility.website || '#';
+                document.getElementById('modal-website').classList.toggle('hidden', !facility.website);
+                modalVideoSeminar.href = facility.videoSeminarLink || '#';
+                modalVideoSeminar.style.display = facility.videoSeminarLink ? 'block' : 'none';
+
+                document.getElementById('modal-description').textContent = facility.description;
+
+                const servicesEl = document.getElementById('modal-services');
+                servicesEl.innerHTML = (facility.services || []).map(s => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">${s}</span>`).join('');
+
+                const agesEl = document.getElementById('modal-ages');
+                agesEl.innerHTML = (facility.ages || []).map(a => `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${a}</span>`).join('');
+
+                modalContainer.classList.remove('hidden');
+            };
+
+            // --- Login Modal Functions ---
+            loginButton.addEventListener('click', () => {
+                loginModalContainer.classList.remove('hidden');
+            });
+
+            loginModalClose.addEventListener('click', () => loginModalContainer.classList.add('hidden'));
+            loginModalContainer.addEventListener('click', (e) => {
+                if (e.target === loginModalContainer) {
+                    loginModalContainer.classList.add('hidden');
+                }
+            });
+
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+
+                if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+                    isAdmin = true;
+                    alert('ログインしました！');
+                    loginModalContainer.classList.add('hidden');
+                    updateAuthUI(); // Update UI after successful login
+                } else {
+                    alert('ログインに失敗しました。メールアドレスまたはパスワードが間違っています。');
+                }
+            });
+
+            logoutButton.addEventListener('click', () => {
+                isAdmin = false; // Set admin status to false on logout
+                alert('ログアウトしました。');
+                updateAuthUI(); // Update UI after logout
+            });
+
+
+            // --- Add Facility Modal Functions ---
+            openAddFacilityModalBtn.addEventListener('click', () => {
+                addFacilityForm.reset();
+                populateSelect(addFacilityPrefectureSelect, prefectures);
+                addFacilityCitySelect.innerHTML = '<option value="">都道府県を選択してください</option>'; // Reset city select
+                populateCheckboxes(addFacilityServicesCheckboxes, serviceTypes, 'add-facility-services');
+                populateCheckboxes(addFacilityAgesCheckboxes, ageGroups, 'add-facility-ages');
+                addFacilityModalContainer.classList.remove('hidden');
+            });
+
+            addFacilityModalClose.addEventListener('click', () => addFacilityModalContainer.classList.add('hidden'));
+            addFacilityModalContainer.addEventListener('click', (e) => {
+                if (e.target === addFacilityModalContainer) {
+                    addFacilityModalContainer.classList.add('hidden');
+                }
+            });
+
+            addFacilityPrefectureSelect.addEventListener('change', (e) => {
+                const selectedPref = e.target.value;
+                const cities = citiesByPrefecture[selectedPref] || [];
+                populateSelect(addFacilityCitySelect, cities);
+            });
+
+            addFacilityForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(addFacilityForm);
+                const newFacility = {
+                    id: Date.now().toString(), // Simple unique ID
+                    name: formData.get('name'),
+                    prefecture: formData.get('prefecture'),
+                    city: formData.get('city'),
+                    address: formData.get('address'),
+                    tel: formData.get('tel'),
+                    website: formData.get('website'),
+                    videoSeminarLink: formData.get('videoSeminarLink'),
+                    description: formData.get('description'),
+                    image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image', // Default image
+                    services: Array.from(addFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                    ages: Array.from(addFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                };
+
+                allFacilities.push(newFacility);
+                alert('事業所情報が正常に登録されました！');
+                addFacilityModalContainer.classList.add('hidden');
+                renderResults(); // Re-render to show new facility
+            });
+
+            // --- Edit Facility Modal Functions ---
+            const openEditFacilityModal = (facility) => {
+                currentEditingFacilityId = facility.id;
+                editFacilityIdInput.value = facility.id;
+                document.getElementById('edit-facility-name').value = facility.name;
+                document.getElementById('edit-facility-address').value = facility.address;
+                document.getElementById('edit-facility-tel').value = facility.tel;
+                document.getElementById('edit-facility-website').value = facility.website;
+                document.getElementById('edit-facility-videoSeminarLink').value = facility.videoSeminarLink;
+                document.getElementById('edit-facility-description').value = facility.description;
+                document.getElementById('edit-facility-image').value = facility.image;
+
+                populateSelect(editFacilityPrefectureSelect, prefectures, facility.prefecture);
+                const cities = citiesByPrefecture[facility.prefecture] || [];
+                populateSelect(editFacilityCitySelect, cities, facility.city);
+
+                populateCheckboxes(editFacilityServicesCheckboxes, serviceTypes, 'edit-facility-services', facility.services);
+                populateCheckboxes(editFacilityAgesCheckboxes, ageGroups, 'edit-facility-ages', facility.ages);
+
+                editFacilityModalContainer.classList.remove('hidden');
+            };
+
+            editFacilityModalClose.addEventListener('click', () => editFacilityModalContainer.classList.add('hidden'));
+            editFacilityModalContainer.addEventListener('click', (e) => {
+                if (e.target === editFacilityModalContainer) {
+                    editFacilityModalContainer.classList.add('hidden');
+                }
+            });
+
+            editFacilityPrefectureSelect.addEventListener('change', (e) => {
+                const selectedPref = e.target.value;
+                const cities = citiesByPrefecture[selectedPref] || [];
+                populateSelect(editFacilityCitySelect, cities);
+            });
+
+            editFacilityForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(editFacilityForm);
+                const updatedFacility = {
+                    id: currentEditingFacilityId,
+                    name: formData.get('name'),
+                    prefecture: formData.get('prefecture'),
+                    city: formData.get('city'),
+                    address: formData.get('address'),
+                    tel: formData.get('tel'),
+                    website: formData.get('website'),
+                    videoSeminarLink: formData.get('videoSeminarLink'),
+                    description: formData.get('description'),
+                    image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
+                    services: Array.from(editFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                    ages: Array.from(editFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                };
+
+                // Find and update the facility in the array
+                allFacilities = allFacilities.map(f => f.id === currentEditingFacilityId ? updatedFacility : f);
+                alert('事業所情報が正常に更新されました！');
+                editFacilityModalContainer.classList.add('hidden');
+                renderResults(); // Re-render to show updated facility
+            });
+
+            // --- Delete Facility Function ---
+            deleteFacilityBtn.addEventListener('click', () => {
+                confirmDeleteModal.classList.remove('hidden');
+            });
+
+            confirmDeleteBtn.addEventListener('click', () => {
+                allFacilities = allFacilities.filter(f => f.id !== currentEditingFacilityId);
+                alert('事業所情報が正常に削除されました！');
+                confirmDeleteModal.classList.add('hidden');
+                editFacilityModalContainer.classList.add('hidden'); // Close edit modal if open
+                renderResults(); // Re-render to reflect deletion
+            });
+
+            cancelDeleteBtn.addEventListener('click', () => {
+                confirmDeleteModal.classList.add('hidden');
+            });
+
+            const init = () => {
+                // 都道府県リストの動的生成
+                prefectures.forEach(p => {
+                    const prefButton = document.createElement('button');
+                    prefButton.className = 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-md shadow transition transform hover:scale-105';
+                    prefButton.textContent = p.name;
+                    prefButton.dataset.name = p.name;
+                    prefButton.addEventListener('click', () => selectPrefecture(p.name));
+                    prefectureListContainer.appendChild(prefButton);
+                });
+
+                setupFilters();
+                setupNavigation();
+                setupModal();
+                resetFiltersBtn.addEventListener('click', resetFilters);
+                updateAuthUI(); // Initial UI update based on isAdmin status (false by default)
+                renderResults(); // Initial render of facilities
+            };
+
+            // Ensure initApp is called only after the DOM is fully loaded
+            document.addEventListener('DOMContentLoaded', initApp);
+        } // initApp関数の閉じ括弧を追加
     </script>
 </body>
 </html>
-
