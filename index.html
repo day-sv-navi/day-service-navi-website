@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>全国放課後等デイサービスナビ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chosen Palette: Calm Harmony (Stone, Slate, Teal) -->
+    <!-- Application Structure Plan: A single-page application featuring three main views managed by JavaScript: 1) A national view with an interactive list for initial prefecture selection. 2) A results view displaying a filterable list of facilities alongside a regional map. 3) A modal view for detailed facility information. This task-oriented flow (Find -> Filter -> View Details) avoids page reloads, providing a seamless and efficient user experience. The structure is designed to guide users logically from a broad overview to specific details, which is ideal for a location-based search portal. -->
+    <!-- Visualization & Content Choices:
+        - Report Info: Hierarchical navigation (Nation -> Prefecture -> City). Goal: Organize/Guide. Viz/Method: A simple list of prefectures for initial selection, followed by dynamic lists for cities and facilities. Interaction: Clicks on list items filter the dataset. Justification: Straightforward and avoids complex map rendering issues. Method: HTML/CSS/JS.
+        - Report Info: Facility listings. Goal: Compare/Inform. Viz/Method: Standardized cards with key data points (name, features, image). Interaction: Clicking a card opens a detailed modal. Justification: Cards are scannable and provide at-a- glance comparisons. Method: HTML/JS template.
+        - Report Info: Filtering criteria (age, services). Goal: Organize/Filter. Viz/Method: Checkboxes and dropdowns in a dedicated sidebar. Interaction: Selections dynamically update the facility list in real-time. Justification: Gives users direct control over results. Method: HTML/JS.
+        - Report Info: Service type distribution. Goal: Compare proportions. Viz/Method: A donut chart. Interaction: Hover to see details. Justification: Provides a quick visual summary of service availability in the area. Library: Chart.js.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s; }
+        .facility-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .facility-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800">
+
+    <header class="bg-white shadow-md sticky top-0 z-40">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-school text-2xl text-cyan-600"></i>
+                <h1 class="text-xl font-bold text-stone-700">全国放課後等デイサービスナビ</h1>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="home">ホーム</a>
+                <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="results">施設を探す</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden">
+                <i class="fas fa-bars text-2xl"></i>
+            </button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden bg-white py-2">
+             <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="home">ホーム</a>
+             <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="results">施設を探す</a>
+        </div>
+    </header>
+
+    <main>
+        <div id="home-page" class="page active">
+            <section class="bg-white">
+                <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 text-center">
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-cyan-700 mb-4">お子さまに最適な場所を、一緒に。</h2>
+                    <p class="text-lg text-stone-600 max-w-3xl mx-auto">全国の放課後等デイサービスから、ご希望の地域やサービス内容で簡単に検索できます。まずは下のリストからお住まいの都道府県を選択してください。</p>
+                </div>
+            </section>
+
+            <section class="container mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-xl font-bold mb-4">都道府県を選択</h3>
+                    <div id="prefecture-list" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <!-- 都道府県リストがここに動的に挿入されます -->
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="results-page" class="page">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="mb-6">
+                    <a href="#" class="text-cyan-600 hover:underline nav-link" data-target="home">&lt; 都道府県の選択に戻る</a>
+                    <h2 id="results-title" class="text-3xl font-bold mt-2"></h2>
+                    <p class="text-stone-600 mt-2">ここでは選択された地域の施設を地図とリストで確認できます。左のフィルターを使って、お子さまに合った条件で絞り込むことができます。</p>
+                </div>
+
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <aside class="w-full lg:w-1/4">
+                        <div class="bg-white p-6 rounded-lg shadow sticky top-24">
+                            <h3 class="text-lg font-bold mb-4 border-b pb-2">絞り込み検索</h3>
+                            <div class="space-y-4" id="filter-options">
+                                 <div>
+                                    <label class="font-semibold text-stone-700">市区町村</label>
+                                    <div id="results-city-filter" class="mt-2 space-y-1 max-h-48 overflow-y-auto"></div>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-stone-700">サービス内容</label>
+                                    <div id="service-filter" class="mt-2 space-y-1"></div>
+                                </div>
+                                <div>
+                                    <label class="font-semibold text-stone-700">対象年齢</label>
+                                    <div id="age-filter" class="mt-2 space-y-1"></div>
+                                </div>
+                                 <button id="reset-filters" class="w-full mt-4 bg-stone-500 text-white py-2 px-4 rounded-md hover:bg-stone-600 transition">リセット</button>
+                            </div>
+                            <div class="mt-6">
+                                <h3 class="text-lg font-bold mb-2 text-center">該当施設数</h3>
+                                <p id="facility-count" class="text-2xl font-bold text-center text-cyan-700">0件</p>
+                            </div>
+                        </div>
+                    </aside>
+                    <div class="w-full lg:w-3/4">
+                        <div id="facility-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        </div>
+                         <div id="no-results" class="hidden text-center py-16 bg-white rounded-lg shadow">
+                            <i class="fas fa-search text-4xl text-stone-400 mb-4"></i>
+                            <p class="text-xl text-stone-600">該当する施設が見つかりませんでした。</p>
+                            <p class="text-stone-500">検索条件を変更してみてください。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h2 id="modal-title" class="text-2xl font-bold text-cyan-700"></h2>
+                <button id="modal-close" class="text-2xl text-stone-500 hover:text-stone-800">&times;</button>
+            </div>
+            <div class="overflow-y-auto p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <img id="modal-image" src="https://placehold.co/600x400/e2e8f0/64748b?text=Image" alt="施設画像" class="w-full h-64 object-cover rounded-md mb-4">
+                        <h3 class="text-lg font-bold mb-2 border-b pb-1">基本情報</h3>
+                        <p id="modal-address" class="text-stone-600 mb-2"></p>
+                        <p id="modal-tel" class="text-stone-600 mb-2"></p>
+                        <a id="modal-website" href="#" target="_blank" class="text-cyan-600 hover:underline">ウェブサイトを見る <i class="fas fa-external-link-alt text-xs"></i></a>
+                        <!-- 新しい動画説明会リンクを追加 -->
+                        <a id="modal-video-seminar" href="#" target="_blank" class="block mt-2 text-cyan-600 hover:underline">動画説明会の申込みはこちら！ <i class="fas fa-video text-xs"></i></a>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold mb-2 border-b pb-1">施設の特徴</h3>
+                        <p id="modal-description" class="text-stone-600 mb-4"></p>
+                        <h3 class="text-lg font-bold mb-2 border-b pb-1">提供サービス</h3>
+                        <div id="modal-services" class="flex flex-wrap gap-2 mb-4"></div>
+                        <h3 class="text-lg font-bold mb-2 border-b pb-1">対象年齢</h3>
+                        <div id="modal-ages" class="flex flex-wrap gap-2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-stone-800 text-white mt-12">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+            <p>&copy; 2025 全国放課後等デイサービスナビ. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const prefectureListContainer = document.getElementById('prefecture-list');
+        const resultsTitle = document.getElementById('results-title');
+        const facilityList = document.getElementById('facility-list');
+        const serviceFilter = document.getElementById('service-filter');
+        const ageFilter = document.getElementById('age-filter');
+        const resultsCityFilter = document.getElementById('results-city-filter');
+        const noResults = document.getElementById('no-results');
+        const resetFiltersBtn = document.getElementById('reset-filters');
+        const facilityCountElement = document.getElementById('facility-count'); // 該当施設数を表示する要素
+
+        const modalContainer = document.getElementById('modal-container');
+        const modalContent = document.getElementById('modal-content');
+        const modalClose = document.getElementById('modal-close');
+        const modalVideoSeminar = document.getElementById('modal-video-seminar'); // 新しいリンク要素を取得
+
+        const pages = document.querySelectorAll('.page');
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        let allFacilities = [];
+        let currentState = {
+            prefecture: null,
+            city: [],
+            services: [],
+            ages: []
+        };
+
+        // 都道府県のリスト
+        const prefectures = [
+            { id: 1, name: "北海道" }, { id: 2, name: "青森" }, { id: 3, name: "岩手" },
+            { id: 4, name: "宮城" }, { id: 5, name: "秋田" }, { id: 6, name: "山形" },
+            { id: 7, name: "福島" }, { id: 8, name: "茨城" }, { id: 9, name: "栃木" },
+            { id: 10, name: "群馬" }, { id: 11, name: "埼玉" }, { id: 12, name: "千葉" },
+            { id: 13, name: "東京" }, { id: 14, name: "神奈川" }, { id: 15, name: "新潟" },
+            { id: 16, name: "富山" }, { id: 17, name: "石川" }, { id: 18, name: "福井" },
+            { id: 19, name: "山梨" }, { id: 20, name: "長野" }, { id: 21, name: "岐阜" },
+            { id: 22, name: "静岡" }, { id: 23, name: "愛知" }, { id: 24, name: "三重" },
+            { id: 25, name: "滋賀" }, { id: 26, name: "京都" }, { id: 27, name: "大阪" },
+            { id: 28, name: "兵庫" }, { id: 29, name: "奈良" }, { id: 30, name: "和歌山" },
+            { id: 31, name: "鳥取" }, { id: 32, name: "島根" }, { id: 33, name: "岡山" },
+            { id: 34, name: "広島" }, { id: 35, name: "山口" }, { id: 36, name: "徳島" },
+            { id: 37, name: "香川" }, { id: 38, name: "愛媛" }, { id: 39, name: "高知" },
+            { id: 40, name: "福岡" }, { id: 41, name: "佐賀" }, { id: 42, name: "長崎" },
+            { id: 43, name: "熊本" }, { id: 44, name: "大分" }, { id: 45, name: "宮崎" },
+            { id: 46, name: "鹿児島" }, { id: 47, name: "沖縄" }
+        ];
+
+
+        const serviceTypes = ["学習支援", "運動特化", "SST", "創作活動", "PCスキル", "送迎あり"];
+        const ageGroups = ["未就学児", "小学生", "中学生", "高校生"];
+
+        const citiesByPrefecture = {
+            "北海道": ["札幌市", "函館市", "旭川市", "小樽市", "帯広市", "釧路市", "苫小牧市", "北見市", "江別市", "千歳市", "その他自治体"],
+            "青森": ["青森市", "弘前市", "八戸市", "五所川原市", "十和田市", "三沢市", "むつ市", "つがる市", "その他自治体"],
+            "岩手": ["盛岡市", "一関市", "奥州市", "花巻市", "北上市", "遠野市", "釜石市", "宮古市", "その他自治体"],
+            "宮城": ["仙台市", "石巻市", "大崎市", "登米市", "栗原市", "名取市", "気仙沼市", "多賀城市", "その他自治体"],
+            "秋田": ["秋田市", "横手市", "大仙市", "能代市", "湯沢市", "由利本荘市", "男鹿市", "その他自治体"],
+            "山形": ["山形市", "米沢市", "鶴岡市", "酒田市", "新庄市", "東根市", "天童市", "その他自治体"],
+            "福島": ["福島市", "郡山市", "いわき市", "会津若松市", "白河市", "須賀川市", "喜多方市", "二本松市", "その他自治体"],
+            "茨城": ["水戸市", "つくば市", "日立市", "土浦市", "古河市", "取手市", "牛久市", "ひたちなか市", "鹿嶋市", "その他自治体"],
+            "栃木": ["宇都宮市", "小山市", "栃木市", "佐野市", "那須塩塩原市", "足利市", "鹿沼市", "日光市", "その他自治体"],
+            "群馬": ["前橋市", "高崎市", "桐生市", "伊勢崎市", "太田市", "沼田市", "渋川市", "藤岡市", "富岡市", "その他自治体"],
+            "埼玉": ["さいたま市", "川口市", "川越市", "越谷市", "所沢市", "熊谷市", "草加市", "春日部市", "新座市", "狭山市", "久喜市", "その他自治体"],
+            "千葉": ["千葉市", "船橋市", "柏市", "市川市", "松戸市", "浦安市", "成田市", "木更津市", "佐倉市", "習志野市", "その他自治体"],
+            "東京": ["千代田区", "中央区", "港区", "新宿区", "文京区", "台東区", "墨田区", "江東区", "品川区", "目黒区", "大田区", "世田谷区", "渋谷区", "中野区", "杉並区", "豊島区", "北区", "荒川区", "板橋区", "練馬区", "足立区", "葛飾区", "江戸川区", "八王子市", "立川市", "武蔵野市", "府中市", "町田市", "調布市", "三鷹市", "青梅市", "その他自治体"],
+            "神奈川": ["横浜市", "川崎市", "相模原市", "藤沢市", "鎌倉市", "厚木市", "横須賀市", "平塚市", "小田原市", "茅ヶ崎市", "大和市", "その他自治体"],
+            "新潟": ["新潟市", "長岡市", "上越市", "三条市", "柏崎市", "新発田市", "佐渡市", "見附市", "村上市", "その他自治体"],
+            "富山": ["富山市", "高岡市", "魚津市", "砺波市", "滑川市", "射水市", "南砺市", "氷見市", "その他自治体"],
+            "石川": ["金沢市", "小松市", "七尾市", "加賀市", "白山市", "野々市市", "能美市", "かほく市", "その他自治体"],
+            "福井": ["福井市", "敦賀市", "鯖江市", "越前市", "大野市", "小浜市", "勝山市", "その他自治体"],
+            "山梨": ["甲府市", "富士吉田市", "大月市", "笛吹市", "韮崎市", "南アルプス市", "甲斐市", "山梨市", "その他自治体"],
+            "長野": ["長野市", "松本市", "上田市", "飯田市", "佐久市", "安曇野市", "伊那市", "諏訪市", "茅野市", "その他自治体"],
+            "岐阜": ["岐阜市", "大垣市", "高山市", "多治見市", "関市", "中津川市", "各務原市", "可児市", "羽島市", "その他自治体"],
+            "静岡": ["静岡市", "浜松市", "沼津市", "富士市", "磐田市", "焼津市", "藤枝市", "三島市", "富士宮市", "掛川市", "その他自治体"],
+            "愛知": ["名古屋市", "豊田市", "岡崎市", "一宮市", "豊橋市", "春日井市", "安城市", "刈谷市", "小牧市", "稲沢市", "半田市", "その他自治体"],
+            "三重": ["津市", "四日市市", "伊勢市", "松阪市", "桑名市", "鈴鹿市", "名張市", "亀山市", "いなべ市", "その他自治体"],
+            "滋賀": ["大津市", "彦根市", "長浜市", "草津市", "守山市", "栗東市", "東近江市", "近江八幡市", "甲賀市", "その他自治体"],
+            "京都": ["京都市", "宇治市", "亀岡市", "舞鶴市", "福知山市", "城陽市", "木津川市", "八幡市", "京田辺市", "その他自治体"],
+            "大阪": ["大阪市", "堺市", "豊中市", "吹田市", "東大阪市", "高槻市", "枚方市", "八尾市", "寝屋川市", "岸和田市", "和泉市", "茨木市", "その他自治体"],
+            "兵庫": ["神戸市", "姫路市", "西宮市", "尼崎市", "明石市", "伊丹市", "加古川市", "宝塚市", "芦屋市", "淡路市", "三田市", "その他自治体"],
+            "奈良": ["奈良市", "橿原市", "生駒市", "大和郡山市", "天理市", "桜井市", "五條市", "御所市", "香芝市", "その他自治体"],
+            "和歌山": ["和歌山市", "田辺市", "新宮市", "海南市", "紀の川市", "橋本市", "有田市", "御坊市", "その他自治体"],
+            "鳥取": ["鳥取市", "米子市", "倉吉市", "境港市", "その他自治体"],
+            "島根": ["松江市", "出雲市", "浜田市", "益田市", "大田市", "安来市", "その他自治体"],
+            "岡山": ["岡山市", "倉敷市", "津山市", "玉野市", "笠岡市", "総社市", "高梁市", "新見市", "その他自治体"],
+            "広島": ["広島市", "福山市", "呉市", "東広島市", "尾道市", "廿日市市", "三原市", "三次市", "その他自治体"],
+            "山口": ["山口市", "下関市", "宇部市", "周南市", "岩国市", "防府市", "光市", "長門市", "その他自治体"],
+            "徳島": ["徳島市", "鳴門市", "小松島市", "阿南市", "吉野川市", "美馬市", "阿波市", "その他自治体"],
+            "香川": ["高松市", "丸亀市", "三豊市", "観音寺市", "坂出市", "さぬき市", "善通寺市", "その他自治体"],
+            "愛媛": ["松山市", "今治市", "新居浜市", "西条市", "四国中央市", "宇和島市", "大洲市", "伊予市", "その他自治体"],
+            "高知": ["高知市", "四万十市", "南国市", "安芸市", "土佐市", "須崎市", "宿毛市", "その他自治体"],
+            "福岡": ["福岡市", "北九州市", "久留米市", "飯塚市", "大牟田市", "春日市", "宗像市", "筑紫野市", "糸島市", "太宰府市", "福津市", "その他自治体"],
+            "佐賀": ["佐賀市", "唐津市", "鳥栖市", "武雄市", "伊万里市", "小城市", "鹿島市", "その他自治体"],
+            "長崎": ["長崎市", "佐世保市", "大村市", "諫早市", "島原市", "五島市", "壱岐市", "対馬市", "その他自治体"],
+            "熊本": ["熊本市", "八代市", "天草市", "玉名市", "山鹿市", "菊池市", "荒尾市", "宇土市", "その他自治体"],
+            "大分": ["大分市", "別府市", "中津市", "日田市", "佐伯市", "宇佐市", "豊後大野市", "その他自治体"],
+            "宮崎": ["宮崎市", "都城市", "延岡市", "日向市", "小林市", "日南市", "えびの市", "その他自治体"],
+            "鹿児島": ["鹿児島市", "霧島市", "鹿屋市", "薩摩川内市", "出水市", "奄美市", "曽於市", "いちき串木野市", "その他自治体"],
+            "沖縄": ["那覇市", "沖縄市", "浦添市", "うるま市", "宜野湾市", "名護市", "豊見城市", "石垣市", "宮古島市", "糸満市", "その他自治体"]
+        };
+
+        const generateMockData = () => {
+            const data = [];
+            let idCounter = 1;
+            for (const pref of Object.keys(citiesByPrefecture)) {
+                // Exclude "Other municipalities" for actual facility generation
+                const actualCities = citiesByPrefecture[pref].filter(city => city !== "その他自治体");
+                for (const city of actualCities) {
+                    for (let i = 0; i < Math.floor(Math.random() * 10) + 3; i++) {
+                        const facilityServices = [...new Set(Array.from({ length: Math.floor(Math.random() * 3) + 1 }, () => serviceTypes[Math.floor(Math.random() * serviceTypes.length)]))];
+                        const facilityAges = [...new Set(Array.from({ length: Math.floor(Math.random() * 2) + 1 }, () => ageGroups[Math.floor(Math.random() * ageGroups.length)]))];
+                        data.push({
+                            id: idCounter++,
+                            name: `${city}すくすく${i+1}園`,
+                            prefecture: pref,
+                            city: city, // Facilities are tied to specific municipalities
+                            address: `${city}〇〇町${i+1}-${i+1}-${i+1}`,
+                            tel: `00-0000-000${i}`,
+                            website: '#',
+                            // 仮の動画説明会リンクを追加
+                            videoSeminarLink: 'https://example.com/video-seminar', // ここに実際のリンクを設定
+                            description: `${city}にある放課後等デイサービスです。${facilityServices.join('や')}に力を入れています。お子さま一人ひとりの個性を大切にし、自立をサポートします。`,
+                            services: facilityServices,
+                            ages: facilityAges,
+                            image: `https://placehold.co/600x400/a5f3fc/0891b2?text=${pref.slice(0,1)}${city.slice(0,1)}${i+1}園`
+                        });
+                    }
+                }
+            }
+            return data;
+        };
+
+        const setupFilters = () => {
+            serviceTypes.forEach(type => {
+                const div = document.createElement('div');
+                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 filter-checkbox" data-filter="services" value="${type}"><span>${type}</span></label>`;
+                serviceFilter.appendChild(div);
+            });
+
+            ageGroups.forEach(age => {
+                 const div = document.createElement('div');
+                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 filter-checkbox" data-filter="ages" value="${age}"><span>${age}</span></label>`;
+                ageFilter.appendChild(div);
+            });
+
+            document.querySelectorAll('.filter-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleFilterChange);
+            });
+        };
+
+        const setupNavigation = () => {
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = e.currentTarget.dataset.target;
+
+                    if (targetId === 'results' && !currentState.prefecture) {
+                        alert('まず都道府県を選択してください。');
+                        return;
+                    }
+
+                    pages.forEach(page => {
+                        if (page.id === `${targetId}-page`) {
+                            page.classList.add('active');
+                        } else {
+                            page.classList.remove('active');
+                        }
+                    });
+                     if (mobileMenu.classList.contains('hidden') === false) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                });
+            });
+        };
+
+        const setupModal = () => {
+            modalClose.addEventListener('click', () => modalContainer.classList.add('hidden'));
+            modalContainer.addEventListener('click', (e) => {
+                if(e.target === modalContainer) {
+                    modalContainer.classList.add('hidden');
+                }
+            });
+        };
+
+        const selectPrefecture = (prefName) => {
+            if (!prefName || !citiesByPrefecture[prefName]) {
+                console.warn(`City data missing for prefecture: ${prefName}`);
+                alert(`「${prefName}」のデータは現在準備中です。`);
+                return;
+            }
+            currentState.prefecture = prefName;
+
+            updateCityFilter();
+            renderResults();
+
+            pages.forEach(page => page.classList.remove('active'));
+            document.getElementById('results-page').classList.add('active');
+        };
+
+        const updateCityFilter = () => {
+            resultsCityFilter.innerHTML = '';
+            const cities = citiesByPrefecture[currentState.prefecture] || [];
+            cities.forEach(city => {
+                const div = document.createElement('div');
+                div.innerHTML = `<label class="flex items-center space-x-2 text-stone-600"><input type="checkbox" class="form-checkbox h-4 w-4 text-cyan-600 border-stone-300 rounded focus:ring-cyan-500 city-filter-checkbox" value="${city}"><span>${city}</span></label>`;
+                resultsCityFilter.appendChild(div);
+            });
+             document.querySelectorAll('.city-filter-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleFilterChange);
+            });
+        };
+
+        const handleFilterChange = () => {
+            currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
+            currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
+            currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
+            renderResults();
+        };
+
+        const resetFilters = () => {
+            currentState.city = [];
+            currentState.services = [];
+            currentState.ages = [];
+            document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
+            renderResults();
+        };
+
+        const renderResults = () => {
+            if (!currentState.prefecture) return;
+            resultsTitle.textContent = `${currentState.prefecture}の放課後等デイサービス`;
+
+            let filteredFacilities = allFacilities.filter(f => f.prefecture === currentState.prefecture);
+
+            let citiesToFilterBy = [...currentState.city];
+            const hasOtherMunicipalitiesSelected = citiesToFilterBy.includes("その他自治体");
+            const hasSpecificCitiesSelected = citiesToFilterBy.some(city => city !== "その他自治体");
+
+            if (hasOtherMunicipalitiesSelected && !hasSpecificCitiesSelected) {
+                // If only "Other municipalities" is selected, show all facilities in the prefecture (disable city filter)
+                citiesToFilterBy = [];
+            } else if (hasOtherMunicipalitiesSelected && hasSpecificCitiesSelected) {
+                // If "Other municipalities" and specific cities are selected, filter only by specific cities
+                citiesToFilterBy = citiesToFilterBy.filter(city => city !== "その他自治体");
+            }
+
+            if (citiesToFilterBy.length > 0) {
+                 filteredFacilities = filteredFacilities.filter(f => citiesToFilterBy.includes(f.city));
+            }
+            if (currentState.services.length > 0) {
+                filteredFacilities = filteredFacilities.filter(f => currentState.services.every(s => f.services.includes(s)));
+            }
+            if (currentState.ages.length > 0) {
+                filteredFacilities = filteredFacilities.filter(f => currentState.ages.every(a => f.ages.includes(a)));
+            }
+
+            facilityList.innerHTML = '';
+            if (filteredFacilities.length > 0) {
+                noResults.classList.add('hidden');
+                facilityList.classList.remove('hidden');
+                filteredFacilities.forEach(facility => {
+                    const card = document.createElement('div');
+                    card.className = 'facility-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer fade-in';
+                    card.innerHTML = `
+                        <img src="${facility.image}" alt="${facility.name}" class="w-full h-40 object-cover">
+                        <div class="p-4">
+                            <h4 class="font-bold text-lg text-stone-800">${facility.name}</h4>
+                            <p class="text-sm text-stone-500 mb-2"><i class="fas fa-map-marker-alt mr-1"></i>${facility.prefecture}${facility.city}</p>
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                ${facility.services.map(s => `<span class="bg-cyan-100 text-cyan-800 text-xs font-semibold px-2 py-1 rounded-full">${s}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => openModal(facility));
+                    facilityList.appendChild(card);
+                });
+            } else {
+                noResults.classList.remove('hidden');
+                facilityList.classList.add('hidden');
+            }
+            // 該当施設数を更新
+            facilityCountElement.textContent = `${filteredFacilities.length}件`;
+        };
+
+        const openModal = (facility) => {
+            document.getElementById('modal-title').textContent = facility.name;
+            document.getElementById('modal-image').src = facility.image;
+            document.getElementById('modal-image').alt = facility.name;
+            document.getElementById('modal-address').innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-stone-500"></i>${facility.prefecture}${facility.address}`;
+            document.getElementById('modal-tel').innerHTML = `<i class="fas fa-phone mr-2 text-stone-500"></i>${facility.tel}`;
+            document.getElementById('modal-website').href = facility.website;
+            // 動画説明会リンクを設定
+            modalVideoSeminar.href = facility.videoSeminarLink;
+            modalVideoSeminar.style.display = facility.videoSeminarLink ? 'block' : 'none'; // リンクがあれば表示、なければ非表示
+
+            document.getElementById('modal-description').textContent = facility.description;
+
+            const servicesEl = document.getElementById('modal-services');
+            servicesEl.innerHTML = facility.services.map(s => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">${s}</span>`).join('');
+
+            const agesEl = document.getElementById('modal-ages');
+            agesEl.innerHTML = facility.ages.map(a => `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${a}</span>`).join('');
+
+            modalContainer.classList.remove('hidden');
+        };
+
+        const init = () => {
+            allFacilities = generateMockData();
+
+            // 都道府県リストの動的生成
+            prefectures.forEach(p => {
+                const prefButton = document.createElement('button');
+                prefButton.className = 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-md shadow transition transform hover:scale-105';
+                prefButton.textContent = p.name;
+                prefButton.dataset.name = p.name;
+                prefButton.addEventListener('click', () => selectPrefecture(p.name));
+                prefectureListContainer.appendChild(prefButton);
+            });
+
+            setupFilters();
+            setupNavigation();
+            setupModal();
+            resetFiltersBtn.addEventListener('click', resetFilters);
+        };
+
+        init();
+    });
+    </script>
+</body>
+</html>
+
