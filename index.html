@@ -29,7 +29,7 @@
             </div>
             <div class="hidden md:flex items-center space-x-6">
                 <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="home">ホーム</a>
-                <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="results">施設を探す</a>
+                <!-- 「施設を探す」ボタンを削除しました -->
                 <button id="login-button" class="bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition">ログイン</button>
                 <button id="logout-button" class="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition hidden">ログアウト</button>
             </div>
@@ -39,7 +39,7 @@
         </nav>
         <div id="mobile-menu" class="hidden md:hidden bg-white py-2">
              <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="home">ホーム</a>
-             <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="results">施設を探す</a>
+             <!-- モバイルメニューの「施設を探す」ボタンを削除しました -->
              <button id="mobile-login-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100">ログイン</button>
              <button id="mobile-logout-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100 hidden">ログアウト</button>
         </div>
@@ -129,7 +129,7 @@
                         <p id="modal-address" class="text-stone-600 mb-2"></p>
                         <p id="modal-tel" class="text-stone-600 mb-2"></p>
                         <a id="modal-website" href="#" target="_blank" class="text-cyan-600 hover:underline hidden">ウェブサイトを見る <i class="fas fa-external-link-alt text-xs"></i></a>
-                        <a id="modal-video-seminar" href="#" target="_blank" class="block mt-2 text-cyan-600 hover:underline">動画説明会の申込みはこちら！ <i class="fas fa-video text-xs"></i></a>
+                        <a id="modal-video-seminar" href="#" target="_blank" class="block mt-2 text-cyan-600 hover:underline">説明会のお申込みはこちら！ <i class="fas fa-video text-xs"></i></a>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold mb-2 border-b pb-1">施設の特徴</h3>
@@ -585,10 +585,12 @@
 
         // Function to render facility results
         const renderResults = () => {
+            console.log("renderResults called. Current state:", currentState);
             if (!currentState.prefecture) {
                 facilityList.innerHTML = '';
                 noResults.classList.remove('hidden');
                 facilityCountElement.textContent = `0件`;
+                console.log("No prefecture selected, hiding facility list.");
                 return;
             }
 
@@ -616,6 +618,7 @@
                 filteredFacilities = filteredFacilities.filter(f => currentState.ages.every(a => f.ages.includes(a)));
             }
 
+            console.log("Filtered facilities count:", filteredFacilities.length);
             facilityList.innerHTML = '';
             if (filteredFacilities.length > 0) {
                 noResults.classList.add('hidden');
@@ -659,6 +662,7 @@
 
         // Function to update UI based on authentication status
         function updateAuthUI() {
+            console.log("updateAuthUI called. isAdmin:", isAdmin);
             if (isAdmin) {
                 loginButton.classList.add('hidden');
                 logoutButton.classList.remove('hidden');
@@ -675,6 +679,54 @@
             // Re-render results to update edit/delete buttons visibility
             renderResults();
         }
+
+        // --- Facility Detail Modal Functions (Moved to global scope) ---
+        const openModal = (facility) => {
+            console.log("openModal called for facility:", facility.name, facility);
+            document.getElementById('modal-title').textContent = facility.name;
+            document.getElementById('modal-image').src = facility.image || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
+            document.getElementById('modal-image').alt = facility.name;
+            document.getElementById('modal-address').innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-stone-500"></i>${facility.prefecture}${facility.address}`;
+            document.getElementById('modal-tel').innerHTML = `<i class="fas fa-phone mr-2 text-stone-500"></i>${facility.tel}`;
+            document.getElementById('modal-website').href = facility.website || '#';
+            document.getElementById('modal-website').classList.toggle('hidden', !facility.website);
+            modalVideoSeminar.href = facility.videoSeminarLink || '#';
+            modalVideoSeminar.style.display = facility.videoSeminarLink ? 'block' : 'none';
+
+            document.getElementById('modal-description').textContent = facility.description;
+
+            const servicesEl = document.getElementById('modal-services');
+            servicesEl.innerHTML = (facility.services || []).map(s => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">${s}</span>`).join('');
+
+            const agesEl = document.getElementById('modal-ages');
+            agesEl.innerHTML = (facility.ages || []).map(a => `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${a}</span>`).join('');
+
+            modalContainer.classList.remove('hidden');
+        };
+
+        // --- Edit Facility Modal Functions (Moved to global scope) ---
+        const openEditFacilityModal = (facility) => {
+            console.log("Open Edit Facility Modal for facility:", facility.name, facility);
+            currentEditingFacilityId = facility.id;
+            editFacilityIdInput.value = facility.id;
+            document.getElementById('edit-facility-name').value = facility.name;
+            document.getElementById('edit-facility-address').value = facility.address;
+            document.getElementById('edit-facility-tel').value = facility.tel;
+            document.getElementById('edit-facility-website').value = facility.website;
+            document.getElementById('edit-facility-videoSeminarLink').value = facility.videoSeminarLink;
+            document.getElementById('edit-facility-description').value = facility.description;
+            document.getElementById('edit-facility-image').value = facility.image;
+
+            populateSelect(editFacilityPrefectureSelect, prefectures, facility.prefecture);
+            const cities = citiesByPrefecture[facility.prefecture] || [];
+            populateSelect(editFacilityCitySelect, cities, facility.city);
+
+            populateCheckboxes(editFacilityServicesCheckboxes, serviceTypes, 'edit-facility-services', facility.services);
+            populateCheckboxes(editFacilityAgesCheckboxes, ageGroups, 'edit-facility-ages', facility.ages);
+
+            editFacilityModalContainer.classList.remove('hidden');
+        };
+
 
         // Main application initialization function, called after the DOM is fully loaded
         function initApp() {
@@ -732,6 +784,8 @@
             mobileMenuButton = document.getElementById('mobile-menu-button');
             mobileMenu = document.getElementById('mobile-menu');
 
+            console.log("DOM elements assigned.");
+
             // All DOM elements are now assigned. Proceed with event listeners and initial setup.
 
             mobileMenuButton.addEventListener('click', () => {
@@ -766,6 +820,7 @@
                         e.preventDefault();
                         const targetId = e.currentTarget.dataset.target;
 
+                        // 「施設を探す」ボタンを削除したため、resultsへの直接遷移はホームから都道府県選択後のみ
                         if (targetId === 'results' && !currentState.prefecture) {
                             alert('まず都道府県を選択してください。');
                             return;
@@ -795,6 +850,7 @@
             };
 
             const selectPrefecture = (prefName) => {
+                console.log("Prefecture selected:", prefName);
                 if (!prefName || !citiesByPrefecture[prefName]) {
                     alert(`「${prefName}」のデータは現在準備中です。`);
                     return;
@@ -810,6 +866,7 @@
             };
 
             const updateCityFilter = () => {
+                console.log("Updating city filter for prefecture:", currentState.prefecture);
                 resultsCityFilter.innerHTML = '';
                 const cities = citiesByPrefecture[currentState.prefecture] || [];
                 populateCheckboxes(resultsCityFilter, cities, 'city', currentState.city);
@@ -820,6 +877,7 @@
             };
 
             const handleFilterChange = () => {
+                console.log("Filter change detected.");
                 currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
                 currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
                 currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
@@ -827,43 +885,27 @@
             };
 
             const resetFilters = () => {
+                console.log("Resetting filters.");
                 currentState.city = [];
                 currentState.services = [];
                 currentState.ages = [];
                 document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
                 renderResults();
             };
-
-            const openModal = (facility) => {
-                document.getElementById('modal-title').textContent = facility.name;
-                document.getElementById('modal-image').src = facility.image || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
-                document.getElementById('modal-image').alt = facility.name;
-                document.getElementById('modal-address').innerHTML = `<i class="fas fa-map-marker-alt mr-2 text-stone-500"></i>${facility.prefecture}${facility.address}`;
-                document.getElementById('modal-tel').innerHTML = `<i class="fas fa-phone mr-2 text-stone-500"></i>${facility.tel}`;
-                document.getElementById('modal-website').href = facility.website || '#';
-                document.getElementById('modal-website').classList.toggle('hidden', !facility.website);
-                modalVideoSeminar.href = facility.videoSeminarLink || '#';
-                modalVideoSeminar.style.display = facility.videoSeminarLink ? 'block' : 'none';
-
-                document.getElementById('modal-description').textContent = facility.description;
-
-                const servicesEl = document.getElementById('modal-services');
-                servicesEl.innerHTML = (facility.services || []).map(s => `<span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">${s}</span>`).join('');
-
-                const agesEl = document.getElementById('modal-ages');
-                agesEl.innerHTML = (facility.ages || []).map(a => `<span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${a}</span>`).join('');
-
-                modalContainer.classList.remove('hidden');
-            };
-
+            
             // --- Login Modal Functions ---
             loginButton.addEventListener('click', () => {
+                console.log("Login button clicked.");
                 loginModalContainer.classList.remove('hidden');
             });
 
-            loginModalClose.addEventListener('click', () => loginModalContainer.classList.add('hidden'));
+            loginModalClose.addEventListener('click', () => {
+                console.log("Login modal close button clicked.");
+                loginModalContainer.classList.add('hidden');
+            });
             loginModalContainer.addEventListener('click', (e) => {
                 if (e.target === loginModalContainer) {
+                    console.log("Login modal background clicked.");
                     loginModalContainer.classList.add('hidden');
                 }
             });
@@ -872,6 +914,7 @@
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
+                console.log("Login attempt for:", email);
 
                 if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
                     isAdmin = true;
@@ -884,6 +927,7 @@
             });
 
             logoutButton.addEventListener('click', () => {
+                console.log("Logout button clicked.");
                 isAdmin = false; // Set admin status to false on logout
                 alert('ログアウトしました。');
                 updateAuthUI(); // Update UI after logout
@@ -892,6 +936,7 @@
 
             // --- Add Facility Modal Functions ---
             openAddFacilityModalBtn.addEventListener('click', () => {
+                console.log("Open Add Facility Modal button clicked.");
                 addFacilityForm.reset();
                 populateSelect(addFacilityPrefectureSelect, prefectures);
                 addFacilityCitySelect.innerHTML = '<option value="">都道府県を選択してください</option>'; // Reset city select
@@ -900,14 +945,19 @@
                 addFacilityModalContainer.classList.remove('hidden');
             });
 
-            addFacilityModalClose.addEventListener('click', () => addFacilityModalContainer.classList.add('hidden'));
+            addFacilityModalClose.addEventListener('click', () => {
+                console.log("Add Facility modal close button clicked.");
+                addFacilityModalContainer.classList.add('hidden');
+            });
             addFacilityModalContainer.addEventListener('click', (e) => {
                 if (e.target === addFacilityModalContainer) {
+                    console.log("Add Facility modal background clicked.");
                     addFacilityModalContainer.classList.add('hidden');
                 }
             });
 
             addFacilityPrefectureSelect.addEventListener('change', (e) => {
+                console.log("Add Facility Prefecture changed to:", e.target.value);
                 const selectedPref = e.target.value;
                 const cities = citiesByPrefecture[selectedPref] || [];
                 populateSelect(addFacilityCitySelect, cities);
@@ -932,41 +982,25 @@
                 };
 
                 allFacilities.push(newFacility);
+                console.log("Adding new facility:", newFacility.name, allFacilities);
                 alert('事業所情報が正常に登録されました！');
                 addFacilityModalContainer.classList.add('hidden');
                 renderResults(); // Re-render to show new facility
             });
 
-            // --- Edit Facility Modal Functions ---
-            const openEditFacilityModal = (facility) => {
-                currentEditingFacilityId = facility.id;
-                editFacilityIdInput.value = facility.id;
-                document.getElementById('edit-facility-name').value = facility.name;
-                document.getElementById('edit-facility-address').value = facility.address;
-                document.getElementById('edit-facility-tel').value = facility.tel;
-                document.getElementById('edit-facility-website').value = facility.website;
-                document.getElementById('edit-facility-videoSeminarLink').value = facility.videoSeminarLink;
-                document.getElementById('edit-facility-description').value = facility.description;
-                document.getElementById('edit-facility-image').value = facility.image;
-
-                populateSelect(editFacilityPrefectureSelect, prefectures, facility.prefecture);
-                const cities = citiesByPrefecture[facility.prefecture] || [];
-                populateSelect(editFacilityCitySelect, cities, facility.city);
-
-                populateCheckboxes(editFacilityServicesCheckboxes, serviceTypes, 'edit-facility-services', facility.services);
-                populateCheckboxes(editFacilityAgesCheckboxes, ageGroups, 'edit-facility-ages', facility.ages);
-
-                editFacilityModalContainer.classList.remove('hidden');
-            };
-
-            editFacilityModalClose.addEventListener('click', () => editFacilityModalContainer.classList.add('hidden'));
+            editFacilityModalClose.addEventListener('click', () => {
+                console.log("Edit Facility modal close button clicked.");
+                editFacilityModalContainer.classList.add('hidden');
+            });
             editFacilityModalContainer.addEventListener('click', (e) => {
                 if (e.target === editFacilityModalContainer) {
+                    console.log("Edit Facility modal background clicked.");
                     editFacilityModalContainer.classList.add('hidden');
                 }
             });
 
             editFacilityPrefectureSelect.addEventListener('change', (e) => {
+                console.log("Edit Facility Prefecture changed to:", e.target.value);
                 const selectedPref = e.target.value;
                 const cities = citiesByPrefecture[selectedPref] || [];
                 populateSelect(editFacilityCitySelect, cities);
@@ -992,6 +1026,7 @@
 
                 // Find and update the facility in the array
                 allFacilities = allFacilities.map(f => f.id === currentEditingFacilityId ? updatedFacility : f);
+                console.log("Updating facility:", updatedFacility.name, allFacilities);
                 alert('事業所情報が正常に更新されました！');
                 editFacilityModalContainer.classList.add('hidden');
                 renderResults(); // Re-render to show updated facility
@@ -999,10 +1034,12 @@
 
             // --- Delete Facility Function ---
             deleteFacilityBtn.addEventListener('click', () => {
+                console.log("Delete Facility button clicked.");
                 confirmDeleteModal.classList.remove('hidden');
             });
 
             confirmDeleteBtn.addEventListener('click', () => {
+                console.log("Confirm Delete button clicked. Deleting facility with ID:", currentEditingFacilityId);
                 allFacilities = allFacilities.filter(f => f.id !== currentEditingFacilityId);
                 alert('事業所情報が正常に削除されました！');
                 confirmDeleteModal.classList.add('hidden');
@@ -1011,10 +1048,12 @@
             });
 
             cancelDeleteBtn.addEventListener('click', () => {
+                console.log("Cancel Delete button clicked.");
                 confirmDeleteModal.classList.add('hidden');
             });
 
             const init = () => {
+                console.log("init function called. Populating prefectures.");
                 // 都道府県リストの動的生成
                 prefectures.forEach(p => {
                     const prefButton = document.createElement('button');
@@ -1023,6 +1062,7 @@
                     prefButton.dataset.name = p.name;
                     prefButton.addEventListener('click', () => selectPrefecture(p.name));
                     prefectureListContainer.appendChild(prefButton);
+                    console.log("Prefecture button added:", p.name);
                 });
 
                 setupFilters();
@@ -1033,9 +1073,13 @@
                 renderResults(); // Initial render of facilities
             };
 
-            // Ensure initApp is called only after the DOM is fully loaded
-            document.addEventListener('DOMContentLoaded', initApp);
-        } // initApp関数の閉じ括弧を追加
+            // initApp関数内で定義されたinitを呼び出す
+            init();
+        }
+
+        // DOMが完全にロードされた後にinitAppを呼び出す
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
+

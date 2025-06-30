@@ -1,0 +1,133 @@
+[debug] [2025-06-30T17:31:07.618Z] ----------------------------------------------------------------------
+[debug] [2025-06-30T17:31:07.619Z] Command:       /Users/seinoyusuke/.nvm/versions/node/v22.17.0/bin/node /Users/seinoyusuke/.npm-global/bin/firebase deploy --only hosting
+[debug] [2025-06-30T17:31:07.619Z] CLI Version:   14.9.0
+[debug] [2025-06-30T17:31:07.619Z] Platform:      darwin
+[debug] [2025-06-30T17:31:07.619Z] Node Version:  v22.17.0
+[debug] [2025-06-30T17:31:07.619Z] Time:          Tue Jul 01 2025 02:31:07 GMT+0900 (日本標準時)
+[debug] [2025-06-30T17:31:07.619Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-06-30T17:31:07.699Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-30T17:31:07.699Z] > authorizing via signed-in user (seino.sth2@gmail.com)
+[debug] [2025-06-30T17:31:07.700Z] [iam] checking project day-navi for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-06-30T17:31:07.700Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:07.700Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:07.700Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions [none]
+[debug] [2025-06-30T17:31:07.701Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions x-goog-quota-user=projects/day-navi
+[debug] [2025-06-30T17:31:07.701Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:31:08.605Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions 200
+[debug] [2025-06-30T17:31:08.605Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:31:08.605Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:08.605Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:08.606Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/day-navi [none]
+[debug] [2025-06-30T17:31:09.008Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/day-navi 200
+[debug] [2025-06-30T17:31:09.008Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/day-navi {"projectId":"day-navi","projectNumber":"23973716033","displayName":"day-navi","name":"projects/day-navi","resources":{"hostingSite":"day-navi"},"state":"ACTIVE","etag":"1_833bcc30-9f2d-4d8b-b043-986acd61e308"}
+[info] 
+[info] === Deploying to 'day-navi'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-06-30T17:31:09.015Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:09.015Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:31:09.015Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions [none]
+[debug] [2025-06-30T17:31:09.015Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-06-30T17:31:10.053Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions 200
+[debug] [2025-06-30T17:36:43.562Z] ----------------------------------------------------------------------
+[debug] [2025-06-30T17:36:43.563Z] Command:       /Users/seinoyusuke/.nvm/versions/node/v22.17.0/bin/node /Users/seinoyusuke/.npm-global/bin/firebase deploy --only hosting
+[debug] [2025-06-30T17:36:43.563Z] CLI Version:   14.9.0
+[debug] [2025-06-30T17:36:43.563Z] Platform:      darwin
+[debug] [2025-06-30T17:36:43.563Z] Node Version:  v22.17.0
+[debug] [2025-06-30T17:36:43.563Z] Time:          Tue Jul 01 2025 02:36:43 GMT+0900 (日本標準時)
+[debug] [2025-06-30T17:36:43.564Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-06-30T17:36:43.645Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-30T17:36:43.645Z] > authorizing via signed-in user (seino.sth2@gmail.com)
+[debug] [2025-06-30T17:36:43.646Z] [iam] checking project day-navi for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-06-30T17:36:43.646Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:43.646Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:43.646Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions [none]
+[debug] [2025-06-30T17:36:43.647Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions x-goog-quota-user=projects/day-navi
+[debug] [2025-06-30T17:36:43.647Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:36:43.968Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions 200
+[debug] [2025-06-30T17:36:43.969Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:36:43.970Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:43.970Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:43.970Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/day-navi [none]
+[debug] [2025-06-30T17:36:44.477Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/day-navi 200
+[debug] [2025-06-30T17:36:44.477Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/day-navi {"projectId":"day-navi","projectNumber":"23973716033","displayName":"day-navi","name":"projects/day-navi","resources":{"hostingSite":"day-navi"},"state":"ACTIVE","etag":"1_833bcc30-9f2d-4d8b-b043-986acd61e308"}
+[info] 
+[info] === Deploying to 'day-navi'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-06-30T17:36:44.484Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:44.484Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:36:44.484Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions [none]
+[debug] [2025-06-30T17:36:44.484Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-06-30T17:36:45.395Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions 200
+[debug] [2025-06-30T17:48:47.127Z] ----------------------------------------------------------------------
+[debug] [2025-06-30T17:48:47.128Z] Command:       /Users/seinoyusuke/.nvm/versions/node/v22.17.0/bin/node /Users/seinoyusuke/.npm-global/bin/firebase deploy --only hosting
+[debug] [2025-06-30T17:48:47.128Z] CLI Version:   14.9.0
+[debug] [2025-06-30T17:48:47.128Z] Platform:      darwin
+[debug] [2025-06-30T17:48:47.128Z] Node Version:  v22.17.0
+[debug] [2025-06-30T17:48:47.128Z] Time:          Tue Jul 01 2025 02:48:47 GMT+0900 (日本標準時)
+[debug] [2025-06-30T17:48:47.128Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-06-30T17:48:47.211Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-30T17:48:47.211Z] > authorizing via signed-in user (seino.sth2@gmail.com)
+[debug] [2025-06-30T17:48:47.211Z] [iam] checking project day-navi for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-06-30T17:48:47.212Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:47.212Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:47.212Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions [none]
+[debug] [2025-06-30T17:48:47.212Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions x-goog-quota-user=projects/day-navi
+[debug] [2025-06-30T17:48:47.212Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:48:47.971Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions 200
+[debug] [2025-06-30T17:48:47.972Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T17:48:47.972Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:47.972Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:47.972Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/day-navi [none]
+[debug] [2025-06-30T17:48:48.493Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/day-navi 200
+[debug] [2025-06-30T17:48:48.493Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/day-navi {"projectId":"day-navi","projectNumber":"23973716033","displayName":"day-navi","name":"projects/day-navi","resources":{"hostingSite":"day-navi"},"state":"ACTIVE","etag":"1_833bcc30-9f2d-4d8b-b043-986acd61e308"}
+[info] 
+[info] === Deploying to 'day-navi'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-06-30T17:48:48.500Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:48.500Z] Checked if tokens are valid: true, expires at: 1751307265899
+[debug] [2025-06-30T17:48:48.500Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions [none]
+[debug] [2025-06-30T17:48:48.500Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-06-30T17:48:49.672Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions 200
+[debug] [2025-06-30T18:05:51.358Z] ----------------------------------------------------------------------
+[debug] [2025-06-30T18:05:51.359Z] Command:       /Users/seinoyusuke/.nvm/versions/node/v22.17.0/bin/node /Users/seinoyusuke/.npm-global/bin/firebase deploy --only hosting
+[debug] [2025-06-30T18:05:51.359Z] CLI Version:   14.9.0
+[debug] [2025-06-30T18:05:51.359Z] Platform:      darwin
+[debug] [2025-06-30T18:05:51.359Z] Node Version:  v22.17.0
+[debug] [2025-06-30T18:05:51.359Z] Time:          Tue Jul 01 2025 03:05:51 GMT+0900 (日本標準時)
+[debug] [2025-06-30T18:05:51.359Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-06-30T18:05:51.445Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-06-30T18:05:51.446Z] > authorizing via signed-in user (seino.sth2@gmail.com)
+[debug] [2025-06-30T18:05:51.446Z] [iam] checking project day-navi for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2025-06-30T18:05:51.446Z] Checked if tokens are valid: false, expires at: 1751307265899
+[debug] [2025-06-30T18:05:51.446Z] Checked if tokens are valid: false, expires at: 1751307265899
+[debug] [2025-06-30T18:05:51.446Z] > refreshing access token with scopes: []
+[debug] [2025-06-30T18:05:51.447Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-06-30T18:05:51.447Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-06-30T18:05:51.704Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-06-30T18:05:51.704Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-06-30T18:05:51.719Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions [none]
+[debug] [2025-06-30T18:05:51.719Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions x-goog-quota-user=projects/day-navi
+[debug] [2025-06-30T18:05:51.719Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T18:05:52.039Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions 200
+[debug] [2025-06-30T18:05:52.039Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/day-navi:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2025-06-30T18:05:52.039Z] Checked if tokens are valid: true, expires at: 1751310350704
+[debug] [2025-06-30T18:05:52.039Z] Checked if tokens are valid: true, expires at: 1751310350704
+[debug] [2025-06-30T18:05:52.040Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/day-navi [none]
+[debug] [2025-06-30T18:05:52.462Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/day-navi 200
+[debug] [2025-06-30T18:05:52.462Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/day-navi {"projectId":"day-navi","projectNumber":"23973716033","displayName":"day-navi","name":"projects/day-navi","resources":{"hostingSite":"day-navi"},"state":"ACTIVE","etag":"1_833bcc30-9f2d-4d8b-b043-986acd61e308"}
+[info] 
+[info] === Deploying to 'day-navi'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2025-06-30T18:05:52.469Z] Checked if tokens are valid: true, expires at: 1751310350704
+[debug] [2025-06-30T18:05:52.469Z] Checked if tokens are valid: true, expires at: 1751310350704
+[debug] [2025-06-30T18:05:52.469Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions [none]
+[debug] [2025-06-30T18:05:52.469Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2025-06-30T18:05:53.592Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/day-navi/versions 200
