@@ -325,15 +325,17 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         // Firebase設定を安全にパースし、エラーハンドリングを追加
         let firebaseConfig = {};
+        let isFirebaseConfigProvided = false; // Firebase設定が提供されたかどうかのフラグ
         try {
             if (typeof __firebase_config !== 'undefined' && __firebase_config) {
                 firebaseConfig = JSON.parse(__firebase_config);
+                isFirebaseConfigProvided = true;
             } else {
-                console.warn("Firebase config (__firebase_config) is undefined or empty. Using empty config.");
+                console.warn("Firebase config (__firebase_config) is undefined or empty. Firebase features will be limited.");
             }
         } catch (e) {
             console.error("Error parsing __firebase_config:", e);
-            alert("Firebase設定の読み込み中にエラーが発生しました。");
+            alert("Firebase設定の読み込み中にエラーが発生しました。アプリケーションの機能が制限されます。");
         }
         
         // Client-side data storage (Firestoreから取得したデータで上書きされます)
@@ -473,18 +475,18 @@
 
         // Firebaseの初期化と認証状態の監視
         const initFirebase = () => {
-            // firebaseConfigが空でないことを確認
-            if (Object.keys(firebaseConfig).length === 0) {
-                console.error("Firebase initialization skipped: firebaseConfig is empty.");
-                alert("Firebase設定が不足しているため、アプリケーションの機能が制限されます。");
-                return; // Firebaseの初期化をスキップ
+            // firebaseConfigが提供されていない場合、初期化をスキップ
+            if (!isFirebaseConfigProvided || Object.keys(firebaseConfig).length === 0) {
+                console.warn("Firebase config is not provided or empty. Firebase features will be unavailable.");
+                alert("Firebase設定が不足しているため、事業所の登録・編集・削除機能およびリアルタイムデータ表示が利用できません。");
+                return;
             }
 
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                console.log("Firebase initialized.");
+                console.log("Firebase initialized successfully.");
 
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -519,14 +521,16 @@
                 });
             } catch (error) {
                 console.error("Firebase initialization failed:", error);
-                alert("Firebaseの初期化中にエラーが発生しました。");
+                alert("Firebaseの初期化中にエラーが発生しました。事業所の登録・編集・削除機能およびリアルタイムデータ表示が利用できません。");
             }
         };
 
         // Firestoreから施設データをリアルタイムで取得
         const fetchFacilitiesFromFirestore = () => {
             if (!db || !userId) {
-                console.log("Firestore or User ID not ready for fetching.");
+                console.warn("Firestore is not initialized or User ID not available. Cannot fetch facilities.");
+                allFacilities = []; // データがないことを明示
+                renderResults(); // 既存の表示をクリア
                 return;
             }
             if (unsubscribeFromFacilities) {
@@ -673,11 +677,20 @@
         // 認証状態に基づいてUIを更新する関数
         function updateAuthUI() {
             console.log("updateAuthUI called. isAdmin:", isAdmin);
-            if (loginButton) loginButton.classList.toggle('hidden', isAdmin);
-            if (logoutButton) logoutButton.classList.toggle('hidden', !isAdmin);
-            if (openAddFacilityModalBtn) openAddFacilityModalBtn.classList.toggle('hidden', !isAdmin);
-            if (mobileLoginButton) mobileLoginButton.classList.toggle('hidden', isAdmin);
-            if (mobileLogoutButton) mobileLogoutButton.classList.toggle('hidden', !isAdmin);
+            // Firebase設定が提供されていない場合、管理者関連のボタンは常に非表示
+            if (!isFirebaseConfigProvided) {
+                if (loginButton) loginButton.classList.add('hidden');
+                if (logoutButton) logoutButton.classList.add('hidden');
+                if (openAddFacilityModalBtn) openAddFacilityModalBtn.classList.add('hidden');
+                if (mobileLoginButton) mobileLoginButton.classList.add('hidden');
+                if (mobileLogoutButton) mobileLogoutButton.classList.add('hidden');
+            } else {
+                if (loginButton) loginButton.classList.toggle('hidden', isAdmin);
+                if (logoutButton) logoutButton.classList.toggle('hidden', !isAdmin);
+                if (openAddFacilityModalBtn) openAddFacilityModalBtn.classList.toggle('hidden', !isAdmin);
+                if (mobileLoginButton) mobileLoginButton.classList.toggle('hidden', isAdmin);
+                if (mobileLogoutButton) mobileLogoutButton.classList.toggle('hidden', !isAdmin);
+            }
             
             renderResults();
         }
@@ -712,6 +725,10 @@
 
         // 施設編集モーダルを開く関数
         const openEditFacilityModal = (facility) => {
+            if (!isFirebaseConfigProvided) {
+                alert("Firebase設定が不足しているため、この機能は利用できません。");
+                return;
+            }
             console.log("Open Edit Facility Modal for facility:", facility.name, facility);
             if (!editFacilityModalContainer || !editFacilityIdInput || !document.getElementById('edit-facility-name') || !document.getElementById('edit-facility-address') || !document.getElementById('edit-facility-tel') || !document.getElementById('edit-facility-website') || !document.getElementById('edit-facility-videoSeminarLink') || !document.getElementById('edit-facility-description') || !document.getElementById('edit-facility-image') || !editFacilityPrefectureSelect || !editFacilityCitySelect || !editFacilityServicesCheckboxes || !editFacilityAgesCheckboxes) {
                 console.error("openEditFacilityModal: Required DOM elements for edit modal are null.");
@@ -1022,6 +1039,10 @@
 
             if (openAddFacilityModalBtn) {
                 openAddFacilityModalBtn.addEventListener('click', () => {
+                    if (!isFirebaseConfigProvided) {
+                        alert("Firebase設定が不足しているため、この機能は利用できません。");
+                        return;
+                    }
                     if (addFacilityForm) addFacilityForm.reset();
                     if (addFacilityPrefectureSelect) populateSelect(addFacilityPrefectureSelect, prefectures);
                     if (addFacilityCitySelect) addFacilityCitySelect.innerHTML = '<option value="">都道府県を選択してください</option>';
@@ -1056,6 +1077,11 @@
             if (addFacilityForm) {
                 addFacilityForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    if (!db || !facilitiesCollection) {
+                        console.error("Firestore is not initialized. Cannot add facility.");
+                        alert("データベースが準備できていないため、事業所を登録できません。");
+                        return;
+                    }
                     const formData = new FormData(addFacilityForm);
                     const newFacility = {
                         name: formData.get('name'),
@@ -1070,12 +1096,6 @@
                         services: Array.from(addFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
                         ages: Array.from(addFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
                     };
-
-                    if (!db || !facilitiesCollection) {
-                        console.error("Firestore is not initialized. Cannot add facility.");
-                        alert("データベースが準備できていません。しばらくしてからもう一度お試しください。");
-                        return;
-                    }
 
                     try {
                         await addDoc(facilitiesCollection, newFacility);
@@ -1113,6 +1133,11 @@
             if (editFacilityForm) {
                 editFacilityForm.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    if (!db || !facilitiesCollection || !currentEditingFacilityId) {
+                        console.error("Firestore is not initialized or no facility selected for edit. Cannot update facility.");
+                        alert("データベースが準備できていないか、編集対象の事業所が選択されていません。");
+                        return;
+                    }
                     const formData = new FormData(editFacilityForm);
                     const updatedFacility = {
                         name: formData.get('name'),
@@ -1128,12 +1153,6 @@
                         ages: Array.from(editFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
                     };
 
-                    if (!db || !facilitiesCollection || !currentEditingFacilityId) {
-                        console.error("Firestore is not initialized or no facility selected for edit. Cannot update facility.");
-                        alert("データベースが準備できていないか、編集対象の事業所が選択されていません。");
-                        return;
-                    }
-
                     try {
                         const facilityRef = doc(db, `artifacts/${appId}/public/data/facilities`, currentEditingFacilityId);
                         await updateDoc(facilityRef, updatedFacility);
@@ -1148,6 +1167,10 @@
 
             if (deleteFacilityBtn) {
                 deleteFacilityBtn.addEventListener('click', () => {
+                    if (!isFirebaseConfigProvided) {
+                        alert("Firebase設定が不足しているため、この機能は利用できません。");
+                        return;
+                    }
                     if (confirmDeleteModal) confirmDeleteModal.classList.remove('hidden');
                 });
             } else { console.error("deleteFacilityBtn not found at event listener setup."); }
