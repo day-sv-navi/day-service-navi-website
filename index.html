@@ -25,12 +25,14 @@
         <nav class="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-2">
                 <i class="fas fa-school text-2xl text-cyan-600"></i>
-                <h1 class="text-xl font-bold text-stone-700">全国放課後等デイサービスナビ</h1>
+                <div>
+                    <h1 class="text-xl font-bold text-stone-700">全国放課後等デイサービスナビ</h1>
+                    <!-- User IDの表示を削除しました -->
+                </div>
             </div>
             <div class="hidden md:flex items-center space-x-6">
                 <a href="#" class="text-stone-600 hover:text-cyan-600 transition nav-link" data-target="home">ホーム</a>
-                <!-- 「施設を探す」ボタンを削除しました -->
-                <button id="login-button" class="bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition">ログイン</button>
+                <button id="login-button" class="bg-slate-600 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition">管理者ログイン</button>
                 <button id="logout-button" class="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition hidden">ログアウト</button>
             </div>
             <button id="mobile-menu-button" class="md:hidden">
@@ -39,8 +41,7 @@
         </nav>
         <div id="mobile-menu" class="hidden md:hidden bg-white py-2">
              <a href="#" class="block px-4 py-2 text-stone-600 hover:bg-stone-100 nav-link" data-target="home">ホーム</a>
-             <!-- モバイルメニューの「施設を探す」ボタンを削除しました -->
-             <button id="mobile-login-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100">ログイン</button>
+             <button id="mobile-login-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100">管理者ログイン</button>
              <button id="mobile-logout-button" class="block w-full text-left px-4 py-2 text-stone-600 hover:bg-stone-100 hidden">ログアウト</button>
         </div>
     </header>
@@ -306,180 +307,26 @@
 
     <!-- Application Logic -->
     <script type="module">
+        // Firebase SDK のインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- グローバル変数宣言 ---
+        let db;
+        let auth;
+        let userId = 'N/A'; // 現在のユーザーID
+        let facilitiesCollection; // Firestoreの施設コレクション参照
+        let unsubscribeFromFacilities; // Firestoreのリアルタイムリスナー解除用
         let isAdmin = false; // Flag to check if the current user is an administrator
+        let currentEditingFacilityId = null; // 現在編集中の施設ID
 
-        // Global variables for DOM elements (will be assigned in initApp)
-        let prefectureListContainer;
-        let resultsTitle;
-        let facilityList;
-        let serviceFilter;
-        let ageFilter;
-        let resultsCityFilter;
-        let noResults;
-        let resetFiltersBtn;
-        let facilityCountElement;
-        let modalContainer;
-        let modalContent;
-        let modalClose;
-        let modalVideoSeminar;
-        let addFacilityModalContainer;
-        let addFacilityModalClose;
-        let addFacilityForm;
-        let openAddFacilityModalBtn;
-        let addFacilityPrefectureSelect;
-        let addFacilityCitySelect;
-        let addFacilityServicesCheckboxes;
-        let addFacilityAgesCheckboxes;
-        let editFacilityModalContainer;
-        let editFacilityModalClose;
-        let editFacilityForm;
-        let editFacilityIdInput;
-        let editFacilityPrefectureSelect;
-        let editFacilityCitySelect;
-        let editFacilityServicesCheckboxes;
-        let editFacilityAgesCheckboxes;
-        let deleteFacilityBtn;
-        let confirmDeleteModal;
-        let confirmDeleteBtn;
-        let cancelDeleteBtn;
-        let loginModalContainer;
-        let loginModalClose;
-        let loginForm;
-        let loginButton;
-        let logoutButton;
-        let mobileLoginButton;
-        let mobileLogoutButton;
-        let pages;
-        let navLinks;
-        let mobileMenuButton;
-        let mobileMenu;
+        // アプリケーションIDとFirebase設定はCanvas環境から提供されます
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 
-        // Client-side data storage (NOT persistent - data will be lost on refresh)
-        let allFacilities = [
-            {
-                id: '1',
-                name: '札幌わくわく教室',
-                prefecture: '北海道',
-                city: '札幌市',
-                address: '中央区大通西1丁目',
-                tel: '011-123-4567',
-                website: 'https://example.com/sapporo-wakuwaku',
-                videoSeminarLink: 'https://youtube.com/watch?v=sapporo',
-                description: '学習支援に力を入れた放課後等デイサービスです。個別指導で学力向上をサポートします。',
-                image: 'https://placehold.co/600x400/a2d2ff/000000?text=Sapporo+Wakuwaku',
-                services: ['学習支援', '送迎あり'],
-                ages: ['小学生', '中学生']
-            },
-            {
-                id: '2',
-                name: '函館のびのびクラブ',
-                prefecture: '北海道',
-                city: '函館市',
-                address: '五稜郭町44',
-                tel: '0138-98-7654',
-                website: 'https://example.com/hakodate-nobinobi',
-                videoSeminarLink: 'https://youtube.com/watch?v=hakodate',
-                description: '運動特化型のデイサービスで、広い体育館で体を動かすプログラムが豊富です。',
-                image: 'https://placehold.co/600x400/bde0fe/000000?text=Hakodate+Nobinobi',
-                services: ['運動特化', '送迎あり'],
-                ages: ['未就学児', '小学生']
-            },
-            {
-                id: '3',
-                name: '旭川アートラボ',
-                prefecture: '北海道',
-                city: '旭川市',
-                address: '宮下通7丁目',
-                tel: '0166-55-1122',
-                website: 'https://example.com/asahikawa-artlab',
-                videoSeminarLink: '',
-                description: '創作活動を通じて自己表現を育むアートに特化したデイサービスです。',
-                image: 'https://placehold.co/600x400/cddafd/000000?text=Asahikawa+ArtLab',
-                services: ['創作活動'],
-                ages: ['小学生', '中学生', '高校生']
-            },
-            {
-                id: '4',
-                name: '青森りんごの家',
-                prefecture: '青森',
-                city: '青森市',
-                address: '新町1丁目',
-                tel: '017-111-2222',
-                website: 'https://example.com/aomori-ringo',
-                videoSeminarLink: '',
-                description: 'SST（ソーシャルスキルトレーニング）に力を入れています。',
-                image: 'https://placehold.co/600x400/ffc8dd/000000?text=Aomori+Ringo',
-                services: ['SST', '送迎あり'],
-                ages: ['小学生']
-            },
-             {
-                id: '5',
-                name: '仙台未来学習塾',
-                prefecture: '宮城',
-                city: '仙台市',
-                address: '青葉区中央2丁目',
-                tel: '022-333-4444',
-                website: 'https://example.com/sendai-mirai',
-                videoSeminarLink: 'https://youtube.com/watch?v=sendai',
-                description: '個別学習支援とプログラミング教育に特化した施設です。',
-                image: 'https://placehold.co/600x400/a2d2ff/000000?text=Sendai+Mirai',
-                services: ['学習支援', 'PCスキル'],
-                ages: ['中学生', '高校生']
-            },
-            {
-                id: '6',
-                name: '東京スマイルラボ',
-                prefecture: '東京',
-                city: '世田谷区',
-                address: '世田谷区桜新町2丁目',
-                tel: '03-1234-5678',
-                website: 'https://example.com/tokyo-smile',
-                videoSeminarLink: 'https://youtube.com/watch?v=tokyo',
-                description: '多様なプログラムを提供する総合的な放課後等デイサービスです。',
-                image: 'https://placehold.co/600x400/bde0fe/000000?text=Tokyo+Smile',
-                services: ['学習支援', '運動特化', 'SST', '送迎あり'],
-                ages: ['未就学児', '小学生', '中学生', '高校生']
-            },
-            {
-                id: '7',
-                name: '横浜チャレンジクラブ',
-                prefecture: '神奈川',
-                city: '横浜市',
-                address: '中区山下町1丁目',
-                tel: '045-987-6543',
-                website: 'https://example.com/yokohama-challenge',
-                videoSeminarLink: '',
-                description: 'スポーツと地域交流を重視した活動を行っています。',
-                image: 'https://placehold.co/600x400/cddafd/000000?text=Yokohama+Challenge',
-                services: ['運動特化', '送迎あり'],
-                ages: ['小学生', '中学生']
-            },
-            {
-                id: '8',
-                name: '名古屋クリエイティブハウス',
-                prefecture: '愛知',
-                city: '名古屋市',
-                address: '中区栄3丁目',
-                tel: '052-222-3333',
-                website: 'https://example.com/nagoya-creative',
-                videoSeminarLink: 'https://youtube.com/watch?v=nagoya',
-                description: 'アートと音楽活動に特化し、創造性を育みます。',
-                image: 'https://placehold.co/600x400/ffc8dd/000000?text=Nagoya+Creative',
-                services: ['創作活動'],
-                ages: ['未就学児', '小学生']
-            }
-        ];
-        let currentEditingFacilityId = null; // For edit/delete operations
-        let currentState = {
-            prefecture: null,
-            city: [],
-            services: [],
-            ages: []
-        };
-
-        // Hardcoded admin credentials for client-side only (NOT secure for production)
-        const ADMIN_EMAIL = "admin@example.com";
-        const ADMIN_PASSWORD = "password"; // Please change this in a real application!
+        // Client-side data storage (Firestoreから取得したデータで上書きされます)
+        let allFacilities = []; // 初期データは空にし、Firestoreから取得します
 
         const prefectures = [
             { id: 1, name: "北海道" }, { id: 2, name: "青森" }, { id: 3, name: "岩手" },
@@ -553,8 +400,149 @@
             "沖縄": ["那覇市", "沖縄市", "浦添市", "うるま市", "宜野湾市", "名護市", "豊見城市", "石垣市", "宮古島市", "糸満市", "その他自治体"]
         };
 
-        // Function to populate select options
+        // Hardcoded admin credentials for client-side only (NOT secure for production)
+        const ADMIN_EMAIL = "admin@example.com";
+        const ADMIN_PASSWORD = "password"; // Please change this in a real application!
+
+        // --- DOM要素のグローバル変数宣言 ---
+        let prefectureListContainer;
+        let resultsTitle;
+        let facilityList;
+        let serviceFilter;
+        let ageFilter;
+        let resultsCityFilter;
+        let noResults;
+        let resetFiltersBtn;
+        let facilityCountElement;
+        let modalContainer;
+        let modalContent;
+        let modalClose;
+        let modalVideoSeminar;
+        let addFacilityModalContainer;
+        let addFacilityModalClose;
+        let addFacilityForm;
+        let openAddFacilityModalBtn;
+        let addFacilityPrefectureSelect;
+        let addFacilityCitySelect;
+        let addFacilityServicesCheckboxes;
+        let addFacilityAgesCheckboxes;
+        let editFacilityModalContainer;
+        let editFacilityModalClose;
+        let editFacilityForm;
+        let editFacilityIdInput;
+        let editFacilityPrefectureSelect;
+        let editFacilityCitySelect;
+        let editFacilityServicesCheckboxes;
+        let editFacilityAgesCheckboxes;
+        let deleteFacilityBtn;
+        let confirmDeleteModal;
+        let confirmDeleteBtn;
+        let cancelDeleteBtn;
+        let loginModalContainer;
+        let loginModalClose;
+        let loginForm;
+        let loginButton;
+        let logoutButton;
+        let mobileLoginButton;
+        let mobileLogoutButton;
+        let pages;
+        let navLinks;
+        let mobileMenuButton;
+        let mobileMenu;
+
+        // --- アプリケーションの状態管理 ---
+        const currentState = {
+            prefecture: null,
+            city: [],
+            services: [],
+            ages: []
+        };
+
+        // --- 関数定義 ---
+
+        // Firebaseの初期化と認証状態の監視
+        const initFirebase = () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                console.log("Firebase initialized.");
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        // console.log("User logged in. UID:", userId); // User IDログを削除
+                    } else {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            try {
+                                const credential = await signInWithCustomToken(auth, __initial_auth_token);
+                                userId = credential.user.uid;
+                                // console.log("Signed in with custom token. UID:", userId); // User IDログを削除
+                            } catch (error) {
+                                console.error("Error signing in with custom token:", error);
+                                try {
+                                    const anonCredential = await signInAnonymously(auth);
+                                    userId = anonCredential.user.uid;
+                                    // console.log("Signed in anonymously after custom token failure. UID:", userId); // User IDログを削除
+                                } catch (anonError) {
+                                    console.error("Error signing in anonymously:", anonError);
+                                    alert("認証エラーが発生しました。");
+                                }
+                            }
+                        } else {
+                            try {
+                                const anonCredential = await signInAnonymously(auth);
+                                userId = anonCredential.user.uid;
+                                // console.log("Signed in anonymously. UID:", userId); // User IDログを削除
+                            } catch (anonError) {
+                                console.error("Error signing in anonymously:", anonError);
+                                alert("認証エラーが発生しました。");
+                            }
+                        }
+                    }
+                    fetchFacilitiesFromFirestore();
+                    updateAuthUI();
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                alert("Firebaseの初期化中にエラーが発生しました。");
+            }
+        };
+
+        // Firestoreから施設データをリアルタイムで取得
+        const fetchFacilitiesFromFirestore = () => {
+            if (!db || !userId) {
+                console.log("Firestore or User ID not ready for fetching.");
+                return;
+            }
+            if (unsubscribeFromFacilities) {
+                unsubscribeFromFacilities();
+                console.log("Previous Firestore listener unsubscribed.");
+            }
+
+            facilitiesCollection = collection(db, `artifacts/${appId}/public/data/facilities`);
+            console.log("Setting up Firestore listener for collection:", `artifacts/${appId}/public/data/facilities`);
+
+            unsubscribeFromFacilities = onSnapshot(facilitiesCollection, (snapshot) => {
+                const fetchedFacilities = [];
+                snapshot.forEach(doc => {
+                    fetchedFacilities.push({ id: doc.id, ...doc.data() });
+                });
+                allFacilities = fetchedFacilities;
+                console.log("Facilities updated from Firestore:", allFacilities.length, "items.");
+                renderResults();
+            }, (error) => {
+                console.error("Error fetching facilities from Firestore:", error);
+                alert("事業所情報の取得中にエラーが発生しました。");
+            });
+        };
+
+        // select要素にオプションを投入する関数
         const populateSelect = (selectElement, options, selectedValue = null) => {
+            if (!selectElement) {
+                console.error("populateSelect: selectElement is null.");
+                return;
+            }
             selectElement.innerHTML = '<option value="">選択してください</option>';
             options.forEach(option => {
                 const opt = document.createElement('option');
@@ -567,8 +555,12 @@
             });
         };
 
-        // Function to populate checkboxes
+        // チェックボックスを生成してコンテナに投入する関数
         const populateCheckboxes = (containerElement, items, dataFilterName, selectedItems = []) => {
+            if (!containerElement) {
+                console.error("populateCheckboxes: containerElement is null for", dataFilterName);
+                return;
+            }
             containerElement.innerHTML = '';
             items.forEach(item => {
                 const div = document.createElement('div');
@@ -583,9 +575,14 @@
             });
         };
 
-        // Function to render facility results
+        // 施設検索結果をレンダリングする関数
         const renderResults = () => {
             console.log("renderResults called. Current state:", currentState);
+            if (!facilityList || !noResults || !facilityCountElement || !resultsTitle) { 
+                console.error("renderResults: Required DOM elements are null.");
+                return;
+            }
+
             if (!currentState.prefecture) {
                 facilityList.innerHTML = '';
                 noResults.classList.remove('hidden');
@@ -640,7 +637,6 @@
                             </div>
                         </div>
                     `;
-                    // Check if buttons exist before adding event listeners
                     card.querySelector('.edit-btn')?.addEventListener('click', (e) => {
                         e.stopPropagation();
                         openEditFacilityModal(facility);
@@ -648,7 +644,7 @@
                     card.querySelector('.delete-btn')?.addEventListener('click', (e) => {
                         e.stopPropagation();
                         currentEditingFacilityId = facility.id;
-                        confirmDeleteModal.classList.remove('hidden');
+                        if (confirmDeleteModal) confirmDeleteModal.classList.remove('hidden');
                     });
                     card.addEventListener('click', () => openModal(facility));
                     facilityList.appendChild(card);
@@ -660,29 +656,25 @@
             facilityCountElement.textContent = `${filteredFacilities.length}件`;
         };
 
-        // Function to update UI based on authentication status
+        // 認証状態に基づいてUIを更新する関数
         function updateAuthUI() {
             console.log("updateAuthUI called. isAdmin:", isAdmin);
-            if (isAdmin) {
-                loginButton.classList.add('hidden');
-                logoutButton.classList.remove('hidden');
-                openAddFacilityModalBtn.classList.remove('hidden'); // Show add button for admin
-                mobileLoginButton.classList.add('hidden');
-                mobileLogoutButton.classList.remove('hidden');
-            } else {
-                loginButton.classList.remove('hidden');
-                logoutButton.classList.add('hidden');
-                openAddFacilityModalBtn.classList.add('hidden'); // Hide add button for non-admin
-                mobileLoginButton.classList.remove('hidden');
-                mobileLogoutButton.classList.add('hidden');
-            }
-            // Re-render results to update edit/delete buttons visibility
+            if (loginButton) loginButton.classList.toggle('hidden', isAdmin);
+            if (logoutButton) logoutButton.classList.toggle('hidden', !isAdmin);
+            if (openAddFacilityModalBtn) openAddFacilityModalBtn.classList.toggle('hidden', !isAdmin);
+            if (mobileLoginButton) mobileLoginButton.classList.toggle('hidden', isAdmin);
+            if (mobileLogoutButton) mobileLogoutButton.classList.toggle('hidden', !isAdmin);
+            
             renderResults();
         }
 
-        // --- Facility Detail Modal Functions (Moved to global scope) ---
+        // 施設詳細モーダルを開く関数
         const openModal = (facility) => {
             console.log("openModal called for facility:", facility.name, facility);
+            if (!modalContainer || !document.getElementById('modal-title') || !document.getElementById('modal-image') || !document.getElementById('modal-address') || !document.getElementById('modal-tel') || !document.getElementById('modal-website') || !modalVideoSeminar || !document.getElementById('modal-description') || !document.getElementById('modal-services') || !document.getElementById('modal-ages')) {
+                console.error("openModal: Required DOM elements for modal are null.");
+                return;
+            }
             document.getElementById('modal-title').textContent = facility.name;
             document.getElementById('modal-image').src = facility.image || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
             document.getElementById('modal-image').alt = facility.name;
@@ -704,9 +696,13 @@
             modalContainer.classList.remove('hidden');
         };
 
-        // --- Edit Facility Modal Functions (Moved to global scope) ---
+        // 施設編集モーダルを開く関数
         const openEditFacilityModal = (facility) => {
             console.log("Open Edit Facility Modal for facility:", facility.name, facility);
+            if (!editFacilityModalContainer || !editFacilityIdInput || !document.getElementById('edit-facility-name') || !document.getElementById('edit-facility-address') || !document.getElementById('edit-facility-tel') || !document.getElementById('edit-facility-website') || !document.getElementById('edit-facility-videoSeminarLink') || !document.getElementById('edit-facility-description') || !document.getElementById('edit-facility-image') || !editFacilityPrefectureSelect || !editFacilityCitySelect || !editFacilityServicesCheckboxes || !editFacilityAgesCheckboxes) {
+                console.error("openEditFacilityModal: Required DOM elements for edit modal are null.");
+                return;
+            }
             currentEditingFacilityId = facility.id;
             editFacilityIdInput.value = facility.id;
             document.getElementById('edit-facility-name').value = facility.name;
@@ -726,12 +722,163 @@
 
             editFacilityModalContainer.classList.remove('hidden');
         };
+        
+        // フィルターを設定する関数
+        const setupFilters = () => {
+            if (!serviceFilter || !ageFilter) {
+                console.error("setupFilters: Required filter elements are null.");
+                return;
+            }
+            populateCheckboxes(serviceFilter, serviceTypes, 'services');
+            populateCheckboxes(ageFilter, ageGroups, 'ages');
 
+            document.querySelectorAll('.filter-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleFilterChange);
+            });
+        };
 
-        // Main application initialization function, called after the DOM is fully loaded
-        function initApp() {
-            console.log("Application initializing...");
-            // Assign DOM elements to global variables
+        // ページ表示を切り替えるヘルパー関数
+        const showPage = (pageId) => {
+            if (!pages || pages.length === 0) {
+                console.error("showPage: No page elements found.");
+                return;
+            }
+            pages.forEach(page => {
+                if (page.id === `${pageId}-page`) {
+                    page.classList.add('active');
+                } else {
+                    page.classList.remove('active');
+                }
+            });
+            // モバイルメニューが開いている場合は閉じる
+            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+            }
+        };
+
+        // ナビゲーションを設定する関数
+        const setupNavigation = () => {
+            if (!navLinks || !pages || !mobileMenu) {
+                console.error("setupNavigation: Required navigation elements are null.");
+                return;
+            }
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = e.currentTarget.dataset.target;
+
+                    if (targetId === 'results' && !currentState.prefecture) {
+                        alert('まず都道府県を選択してください。');
+                        return;
+                    }
+                    showPage(targetId); // 新しいヘルパー関数を使用
+                });
+            });
+        };
+
+        // モーダルを設定する関数
+        const setupModal = () => {
+            if (!modalClose || !modalContainer) {
+                console.error("setupModal: Required modal elements are null.");
+                return;
+            }
+            modalClose.addEventListener('click', () => modalContainer.classList.add('hidden'));
+            modalContainer.addEventListener('click', (e) => {
+                if (e.target === modalContainer) {
+                    modalContainer.classList.add('hidden');
+                }
+            });
+        };
+
+        // 都道府県を選択する関数
+        const selectPrefecture = (prefName) => {
+            console.log("Prefecture selected:", prefName);
+            if (!prefName || !citiesByPrefecture[prefName]) {
+                alert(`「${prefName}」のデータは現在準備中です。`);
+                return;
+            }
+            currentState.prefecture = prefName;
+            currentState.city = [];
+            updateCityFilter();
+            renderResults();
+
+            // 都道府県選択後、結果ページを表示
+            showPage('results');
+        };
+
+        // 市区町村フィルターを更新する関数
+        const updateCityFilter = () => {
+            console.log("Updating city filter for prefecture:", currentState.prefecture);
+            if (!resultsCityFilter) {
+                console.error("updateCityFilter: resultsCityFilter is null.");
+                return;
+            }
+            resultsCityFilter.innerHTML = '';
+            const cities = citiesByPrefecture[currentState.prefecture] || [];
+            populateCheckboxes(resultsCityFilter, cities, 'city', currentState.city);
+
+            document.querySelectorAll('.city-filter-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleFilterChange);
+            });
+        };
+
+        // フィルター変更を処理する関数
+        const handleFilterChange = () => {
+            console.log("Filter change detected.");
+            currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
+            currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
+            currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
+            renderResults();
+        };
+
+        // フィルターをリセットする関数
+        const resetFilters = () => {
+            console.log("Resetting filters.");
+            currentState.city = [];
+            currentState.services = [];
+            currentState.ages = [];
+            document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
+            renderResults();
+        };
+
+        // アプリケーションの初期化関数
+        const init = () => {
+            console.log("init function called. Populating prefectures.");
+            if (prefectureListContainer) {
+                console.log("prefectureListContainer is valid. Populating prefecture buttons.");
+                prefectures.forEach(p => {
+                    const prefButton = document.createElement('button');
+                    prefButton.className = 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-md shadow transition transform hover:scale-105';
+                    prefButton.textContent = p.name;
+                    prefButton.dataset.name = p.name;
+                    prefButton.addEventListener('click', () => selectPrefecture(p.name));
+                    prefectureListContainer.appendChild(prefButton);
+                    console.log("Prefecture button added:", p.name);
+                });
+                console.log("Finished prefecture button generation.");
+            } else {
+                console.error("Critical Error: prefectureListContainer is null. Cannot populate prefecture buttons. This indicates a DOM element retrieval issue.");
+                alert("エラー: 都道府県リストの表示に問題が発生しました。ページをリロードしてください。");
+            }
+
+            // init内で呼び出す関数
+            setupFilters();
+            setupNavigation();
+            setupModal();
+            
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', resetFilters);
+            } else {
+                console.error("resetFiltersBtn not found.");
+            }
+            updateAuthUI();
+        };
+
+        // DOMが完全にロードされた後にアプリとFirebaseを初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOMContentLoaded event fired. Starting application setup.");
+
+            // --- DOM要素の取得 ---
             prefectureListContainer = document.getElementById('prefecture-list');
             resultsTitle = document.getElementById('results-title');
             facilityList = document.getElementById('facility-list');
@@ -771,315 +918,252 @@
             cancelDeleteBtn = document.getElementById('cancel-delete-btn');
 
             loginModalContainer = document.getElementById('login-modal-container');
-            loginModalClose = document.getElementById('login-modal-close');
+            loginModalClose = document.getElementById('login-modal-close'); 
             loginForm = document.getElementById('login-form');
             loginButton = document.getElementById('login-button');
             logoutButton = document.getElementById('logout-button');
             mobileLoginButton = document.getElementById('mobile-login-button');
             mobileLogoutButton = document.getElementById('mobile-logout-button');
-
-
+            
             pages = document.querySelectorAll('.page');
             navLinks = document.querySelectorAll('.nav-link');
             mobileMenuButton = document.getElementById('mobile-menu-button');
             mobileMenu = document.getElementById('mobile-menu');
 
-            console.log("DOM elements assigned.");
+            console.log("All DOM elements assigned.");
 
-            // All DOM elements are now assigned. Proceed with event listeners and initial setup.
+            // アプリケーションの初期化とFirebaseの初期化
+            init();
+            initFirebase();
 
-            mobileMenuButton.addEventListener('click', () => {
-                mobileMenu.classList.toggle('hidden');
-            });
-
-            // Add event listeners for mobile login/logout buttons
-            mobileLoginButton.addEventListener('click', () => {
-                loginModalContainer.classList.remove('hidden');
-                mobileMenu.classList.add('hidden'); // Close mobile menu after clicking login
-            });
-
-            mobileLogoutButton.addEventListener('click', () => {
-                isAdmin = false; // Set admin status to false on logout
-                alert('ログアウトしました。');
-                mobileMenu.classList.add('hidden'); // Close mobile menu after logging out
-                updateAuthUI(); // Update UI after logout
-            });
-
-            const setupFilters = () => {
-                populateCheckboxes(serviceFilter, serviceTypes, 'services');
-                populateCheckboxes(ageFilter, ageGroups, 'ages');
-
-                document.querySelectorAll('.filter-checkbox').forEach(cb => {
-                    cb.addEventListener('change', handleFilterChange);
+            // --- イベントリスナーの設定 ---
+            // 全てのDOM要素が割り当てられ、関数が定義された後に設定
+            if (mobileMenuButton) {
+                mobileMenuButton.addEventListener('click', () => {
+                    console.log("Mobile menu button clicked!"); // デバッグ用ログ
+                    if (mobileMenu) mobileMenu.classList.toggle('hidden');
                 });
-            };
+            } else { console.error("mobileMenuButton not found at event listener setup."); }
 
-            const setupNavigation = () => {
-                navLinks.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        const targetId = e.currentTarget.dataset.target;
-
-                        // 「施設を探す」ボタンを削除したため、resultsへの直接遷移はホームから都道府県選択後のみ
-                        if (targetId === 'results' && !currentState.prefecture) {
-                            alert('まず都道府県を選択してください。');
-                            return;
-                        }
-
-                        pages.forEach(page => {
-                            if (page.id === `${targetId}-page`) {
-                                page.classList.add('active');
-                            } else {
-                                page.classList.remove('active');
-                            }
-                        });
-                        if (mobileMenu.classList.contains('hidden') === false) {
-                            mobileMenu.classList.add('hidden');
-                        }
-                    });
+            if (mobileLoginButton) {
+                mobileLoginButton.addEventListener('click', () => {
+                    if (loginModalContainer) loginModalContainer.classList.remove('hidden');
+                    if (mobileMenu) mobileMenu.classList.add('hidden');
                 });
-            };
+            } else { console.error("mobileLoginButton not found at event listener setup."); }
 
-            const setupModal = () => {
-                modalClose.addEventListener('click', () => modalContainer.classList.add('hidden'));
-                modalContainer.addEventListener('click', (e) => {
-                    if (e.target === modalContainer) {
-                        modalContainer.classList.add('hidden');
+            if (mobileLogoutButton) {
+                mobileLogoutButton.addEventListener('click', () => {
+                    isAdmin = false;
+                    alert('ログアウトしました。');
+                    if (mobileMenu) mobileMenu.classList.add('hidden');
+                    updateAuthUI();
+                });
+            } else { console.error("mobileLogoutButton not found at event listener setup."); }
+
+            if (loginButton) {
+                loginButton.addEventListener('click', () => {
+                    if (loginModalContainer) loginModalContainer.classList.remove('hidden');
+                });
+            } else { console.error("loginButton not found at event listener setup."); }
+
+            if (loginModalClose) {
+                loginModalClose.addEventListener('click', () => {
+                    if (loginModalContainer) loginModalContainer.classList.add('hidden');
+                });
+            } else { console.error("loginModalClose not found at event listener setup."); }
+
+            if (loginModalContainer) {
+                loginModalContainer.addEventListener('click', (e) => {
+                    if (e.target === loginModalContainer) {
+                        loginModalContainer.classList.add('hidden');
                     }
                 });
-            };
+            } else { console.error("loginModalContainer not found at event listener setup."); }
 
-            const selectPrefecture = (prefName) => {
-                console.log("Prefecture selected:", prefName);
-                if (!prefName || !citiesByPrefecture[prefName]) {
-                    alert(`「${prefName}」のデータは現在準備中です。`);
-                    return;
-                }
-                currentState.prefecture = prefName;
-                currentState.city = []; // Reset city filter when prefecture changes
-                // No need to uncheck city filters here, updateCityFilter will rebuild them
-                updateCityFilter();
-                renderResults();
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const email = document.getElementById('login-email')?.value;
+                    const password = document.getElementById('login-password')?.value;
 
-                pages.forEach(page => page.classList.remove('active'));
-                document.getElementById('results-page').classList.add('active');
-            };
-
-            const updateCityFilter = () => {
-                console.log("Updating city filter for prefecture:", currentState.prefecture);
-                resultsCityFilter.innerHTML = '';
-                const cities = citiesByPrefecture[currentState.prefecture] || [];
-                populateCheckboxes(resultsCityFilter, cities, 'city', currentState.city);
-
-                document.querySelectorAll('.city-filter-checkbox').forEach(cb => {
-                    cb.addEventListener('change', handleFilterChange);
+                    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+                        isAdmin = true;
+                        alert('ログインしました！');
+                        if (loginModalContainer) loginModalContainer.classList.add('hidden');
+                        updateAuthUI();
+                    } else {
+                        alert('ログインに失敗しました。メールアドレスまたはパスワードが間違っています。');
+                    }
                 });
-            };
+            } else { console.error("loginForm not found at event listener setup."); }
 
-            const handleFilterChange = () => {
-                console.log("Filter change detected.");
-                currentState.city = Array.from(document.querySelectorAll('.city-filter-checkbox:checked')).map(cb => cb.value);
-                currentState.services = Array.from(document.querySelectorAll('[data-filter="services"]:checked')).map(cb => cb.value);
-                currentState.ages = Array.from(document.querySelectorAll('[data-filter="ages"]:checked')).map(cb => cb.value);
-                renderResults();
-            };
-
-            const resetFilters = () => {
-                console.log("Resetting filters.");
-                currentState.city = [];
-                currentState.services = [];
-                currentState.ages = [];
-                document.querySelectorAll('.filter-checkbox, .city-filter-checkbox').forEach(cb => cb.checked = false);
-                renderResults();
-            };
-            
-            // --- Login Modal Functions ---
-            loginButton.addEventListener('click', () => {
-                console.log("Login button clicked.");
-                loginModalContainer.classList.remove('hidden');
-            });
-
-            loginModalClose.addEventListener('click', () => {
-                console.log("Login modal close button clicked.");
-                loginModalContainer.classList.add('hidden');
-            });
-            loginModalContainer.addEventListener('click', (e) => {
-                if (e.target === loginModalContainer) {
-                    console.log("Login modal background clicked.");
-                    loginModalContainer.classList.add('hidden');
-                }
-            });
-
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                console.log("Login attempt for:", email);
-
-                if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-                    isAdmin = true;
-                    alert('ログインしました！');
-                    loginModalContainer.classList.add('hidden');
-                    updateAuthUI(); // Update UI after successful login
-                } else {
-                    alert('ログインに失敗しました。メールアドレスまたはパスワードが間違っています。');
-                }
-            });
-
-            logoutButton.addEventListener('click', () => {
-                console.log("Logout button clicked.");
-                isAdmin = false; // Set admin status to false on logout
-                alert('ログアウトしました。');
-                updateAuthUI(); // Update UI after logout
-            });
-
-
-            // --- Add Facility Modal Functions ---
-            openAddFacilityModalBtn.addEventListener('click', () => {
-                console.log("Open Add Facility Modal button clicked.");
-                addFacilityForm.reset();
-                populateSelect(addFacilityPrefectureSelect, prefectures);
-                addFacilityCitySelect.innerHTML = '<option value="">都道府県を選択してください</option>'; // Reset city select
-                populateCheckboxes(addFacilityServicesCheckboxes, serviceTypes, 'add-facility-services');
-                populateCheckboxes(addFacilityAgesCheckboxes, ageGroups, 'add-facility-ages');
-                addFacilityModalContainer.classList.remove('hidden');
-            });
-
-            addFacilityModalClose.addEventListener('click', () => {
-                console.log("Add Facility modal close button clicked.");
-                addFacilityModalContainer.classList.add('hidden');
-            });
-            addFacilityModalContainer.addEventListener('click', (e) => {
-                if (e.target === addFacilityModalContainer) {
-                    console.log("Add Facility modal background clicked.");
-                    addFacilityModalContainer.classList.add('hidden');
-                }
-            });
-
-            addFacilityPrefectureSelect.addEventListener('change', (e) => {
-                console.log("Add Facility Prefecture changed to:", e.target.value);
-                const selectedPref = e.target.value;
-                const cities = citiesByPrefecture[selectedPref] || [];
-                populateSelect(addFacilityCitySelect, cities);
-            });
-
-            addFacilityForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(addFacilityForm);
-                const newFacility = {
-                    id: Date.now().toString(), // Simple unique ID
-                    name: formData.get('name'),
-                    prefecture: formData.get('prefecture'),
-                    city: formData.get('city'),
-                    address: formData.get('address'),
-                    tel: formData.get('tel'),
-                    website: formData.get('website'),
-                    videoSeminarLink: formData.get('videoSeminarLink'),
-                    description: formData.get('description'),
-                    image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image', // Default image
-                    services: Array.from(addFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
-                    ages: Array.from(addFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
-                };
-
-                allFacilities.push(newFacility);
-                console.log("Adding new facility:", newFacility.name, allFacilities);
-                alert('事業所情報が正常に登録されました！');
-                addFacilityModalContainer.classList.add('hidden');
-                renderResults(); // Re-render to show new facility
-            });
-
-            editFacilityModalClose.addEventListener('click', () => {
-                console.log("Edit Facility modal close button clicked.");
-                editFacilityModalContainer.classList.add('hidden');
-            });
-            editFacilityModalContainer.addEventListener('click', (e) => {
-                if (e.target === editFacilityModalContainer) {
-                    console.log("Edit Facility modal background clicked.");
-                    editFacilityModalContainer.classList.add('hidden');
-                }
-            });
-
-            editFacilityPrefectureSelect.addEventListener('change', (e) => {
-                console.log("Edit Facility Prefecture changed to:", e.target.value);
-                const selectedPref = e.target.value;
-                const cities = citiesByPrefecture[selectedPref] || [];
-                populateSelect(editFacilityCitySelect, cities);
-            });
-
-            editFacilityForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const formData = new FormData(editFacilityForm);
-                const updatedFacility = {
-                    id: currentEditingFacilityId,
-                    name: formData.get('name'),
-                    prefecture: formData.get('prefecture'),
-                    city: formData.get('city'),
-                    address: formData.get('address'),
-                    tel: formData.get('tel'),
-                    website: formData.get('website'),
-                    videoSeminarLink: formData.get('videoSeminarLink'),
-                    description: formData.get('description'),
-                    image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
-                    services: Array.from(editFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
-                    ages: Array.from(editFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
-                };
-
-                // Find and update the facility in the array
-                allFacilities = allFacilities.map(f => f.id === currentEditingFacilityId ? updatedFacility : f);
-                console.log("Updating facility:", updatedFacility.name, allFacilities);
-                alert('事業所情報が正常に更新されました！');
-                editFacilityModalContainer.classList.add('hidden');
-                renderResults(); // Re-render to show updated facility
-            });
-
-            // --- Delete Facility Function ---
-            deleteFacilityBtn.addEventListener('click', () => {
-                console.log("Delete Facility button clicked.");
-                confirmDeleteModal.classList.remove('hidden');
-            });
-
-            confirmDeleteBtn.addEventListener('click', () => {
-                console.log("Confirm Delete button clicked. Deleting facility with ID:", currentEditingFacilityId);
-                allFacilities = allFacilities.filter(f => f.id !== currentEditingFacilityId);
-                alert('事業所情報が正常に削除されました！');
-                confirmDeleteModal.classList.add('hidden');
-                editFacilityModalContainer.classList.add('hidden'); // Close edit modal if open
-                renderResults(); // Re-render to reflect deletion
-            });
-
-            cancelDeleteBtn.addEventListener('click', () => {
-                console.log("Cancel Delete button clicked.");
-                confirmDeleteModal.classList.add('hidden');
-            });
-
-            const init = () => {
-                console.log("init function called. Populating prefectures.");
-                // 都道府県リストの動的生成
-                prefectures.forEach(p => {
-                    const prefButton = document.createElement('button');
-                    prefButton.className = 'bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-md shadow transition transform hover:scale-105';
-                    prefButton.textContent = p.name;
-                    prefButton.dataset.name = p.name;
-                    prefButton.addEventListener('click', () => selectPrefecture(p.name));
-                    prefectureListContainer.appendChild(prefButton);
-                    console.log("Prefecture button added:", p.name);
+            if (logoutButton) {
+                logoutButton.addEventListener('click', () => {
+                    isAdmin = false;
+                    alert('ログアウトしました。');
+                    updateAuthUI();
                 });
+            } else { console.error("logoutButton not found at event listener setup."); }
 
-                setupFilters();
-                setupNavigation();
-                setupModal();
-                resetFiltersBtn.addEventListener('click', resetFilters);
-                updateAuthUI(); // Initial UI update based on isAdmin status (false by default)
-                renderResults(); // Initial render of facilities
-            };
+            if (openAddFacilityModalBtn) {
+                openAddFacilityModalBtn.addEventListener('click', () => {
+                    if (addFacilityForm) addFacilityForm.reset();
+                    if (addFacilityPrefectureSelect) populateSelect(addFacilityPrefectureSelect, prefectures);
+                    if (addFacilityCitySelect) addFacilityCitySelect.innerHTML = '<option value="">都道府県を選択してください</option>';
+                    if (addFacilityServicesCheckboxes) populateCheckboxes(addFacilityServicesCheckboxes, serviceTypes, 'add-facility-services');
+                    if (addFacilityAgesCheckboxes) populateCheckboxes(addFacilityAgesCheckboxes, ageGroups, 'add-facility-ages');
+                    if (addFacilityModalContainer) addFacilityModalContainer.classList.remove('hidden');
+                });
+            } else { console.error("openAddFacilityModalBtn not found at event listener setup."); }
 
-            // initApp関数内で定義されたinitを呼び出す
-            init();
-        }
+            if (addFacilityModalClose) {
+                addFacilityModalClose.addEventListener('click', () => {
+                    if (addFacilityModalContainer) addFacilityModalContainer.classList.add('hidden');
+                });
+            } else { console.error("addFacilityModalClose not found at event listener setup."); }
 
-        // DOMが完全にロードされた後にinitAppを呼び出す
-        document.addEventListener('DOMContentLoaded', initApp);
+            if (addFacilityModalContainer) {
+                addFacilityModalContainer.addEventListener('click', (e) => {
+                    if (e.target === addFacilityModalContainer) {
+                        addFacilityModalContainer.classList.add('hidden');
+                    }
+                });
+            } else { console.error("addFacilityModalContainer not found at event listener setup."); }
+
+            if (addFacilityPrefectureSelect) {
+                addFacilityPrefectureSelect.addEventListener('change', (e) => {
+                    const selectedPref = e.target.value;
+                    const cities = citiesByPrefecture[selectedPref] || [];
+                    if (addFacilityCitySelect) populateSelect(addFacilityCitySelect, cities);
+                });
+            } else { console.error("addFacilityPrefectureSelect not found at event listener setup."); }
+
+            if (addFacilityForm) {
+                addFacilityForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(addFacilityForm);
+                    const newFacility = {
+                        name: formData.get('name'),
+                        prefecture: formData.get('prefecture'),
+                        city: formData.get('city'),
+                        address: formData.get('address'),
+                        tel: formData.get('tel'),
+                        website: formData.get('website'),
+                        videoSeminarLink: formData.get('videoSeminarLink'),
+                        description: formData.get('description'),
+                        image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
+                        services: Array.from(addFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                        ages: Array.from(addFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                    };
+
+                    if (!db || !facilitiesCollection) {
+                        console.error("Firestore is not initialized. Cannot add facility.");
+                        alert("データベースが準備できていません。しばらくしてからもう一度お試しください。");
+                        return;
+                    }
+
+                    try {
+                        await addDoc(facilitiesCollection, newFacility);
+                        alert('事業所情報が正常に登録されました！');
+                        if (addFacilityModalContainer) addFacilityModalContainer.classList.add('hidden');
+                    } catch (error) {
+                        console.error("Error adding document to Firestore: ", error);
+                        alert("事業所情報の登録中にエラーが発生しました。");
+                    }
+                });
+            } else { console.error("addFacilityForm not found at event listener setup."); }
+
+            if (editFacilityModalClose) {
+                editFacilityModalClose.addEventListener('click', () => {
+                    if (editFacilityModalContainer) editFacilityModalContainer.classList.add('hidden');
+                });
+            } else { console.error("editFacilityModalClose not found at event listener setup."); }
+
+            if (editFacilityModalContainer) {
+                editFacilityModalContainer.addEventListener('click', (e) => {
+                    if (e.target === editFacilityModalContainer) {
+                        editFacilityModalContainer.classList.add('hidden');
+                    }
+                });
+            } else { console.error("editFacilityModalContainer not found at event listener setup."); }
+
+            if (editFacilityPrefectureSelect) {
+                editFacilityPrefectureSelect.addEventListener('change', (e) => {
+                    const selectedPref = e.target.value;
+                    const cities = citiesByPrefecture[selectedPref] || [];
+                    if (editFacilityCitySelect) populateSelect(editFacilityCitySelect, cities);
+                });
+            } else { console.error("editFacilityPrefectureSelect not found at event listener setup."); }
+
+            if (editFacilityForm) {
+                editFacilityForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(editFacilityForm);
+                    const updatedFacility = {
+                        name: formData.get('name'),
+                        prefecture: formData.get('prefecture'),
+                        city: formData.get('city'),
+                        address: formData.get('address'),
+                        tel: formData.get('tel'),
+                        website: formData.get('website'),
+                        videoSeminarLink: formData.get('videoSeminarLink'),
+                        description: formData.get('description'),
+                        image: formData.get('image') || 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image',
+                        services: Array.from(editFacilityServicesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                        ages: Array.from(editFacilityAgesCheckboxes.querySelectorAll('input:checked')).map(cb => cb.value),
+                    };
+
+                    if (!db || !facilitiesCollection || !currentEditingFacilityId) {
+                        console.error("Firestore is not initialized or no facility selected for edit. Cannot update facility.");
+                        alert("データベースが準備できていないか、編集対象の事業所が選択されていません。");
+                        return;
+                    }
+
+                    try {
+                        const facilityRef = doc(db, `artifacts/${appId}/public/data/facilities`, currentEditingFacilityId);
+                        await updateDoc(facilityRef, updatedFacility);
+                        alert('事業所情報が正常に更新されました！');
+                        if (editFacilityModalContainer) editFacilityModalContainer.classList.add('hidden');
+                    } catch (error) {
+                        console.error("Error updating document in Firestore: ", error);
+                        alert("事業所情報の更新中にエラーが発生しました。");
+                    }
+                });
+            } else { console.error("editFacilityForm not found at event listener setup."); }
+
+            if (deleteFacilityBtn) {
+                deleteFacilityBtn.addEventListener('click', () => {
+                    if (confirmDeleteModal) confirmDeleteModal.classList.remove('hidden');
+                });
+            } else { console.error("deleteFacilityBtn not found at event listener setup."); }
+
+            if (confirmDeleteBtn) {
+                confirmDeleteBtn.addEventListener('click', async () => {
+                    if (!db || !facilitiesCollection || !currentEditingFacilityId) {
+                        console.error("Firestore is not initialized or no facility selected for delete. Cannot delete facility.");
+                        alert("データベースが準備できていないか、削除対象の事業所が選択されていません。");
+                        return;
+                    }
+                    try {
+                        const facilityRef = doc(db, `artifacts/${appId}/public/data/facilities`, currentEditingFacilityId);
+                        await deleteDoc(facilityRef);
+                        alert('事業所情報が正常に削除されました！');
+                        if (confirmDeleteModal) confirmDeleteModal.classList.add('hidden');
+                        if (editFacilityModalContainer) editFacilityModalContainer.classList.add('hidden');
+                    } catch (error) {
+                        console.error("Error deleting document from Firestore: ", error);
+                        alert("事業所情報の削除中にエラーが発生しました。");
+                    }
+                });
+            } else { console.error("confirmDeleteBtn not found at event listener setup."); }
+
+            if (cancelDeleteBtn) {
+                cancelDeleteBtn.addEventListener('click', () => {
+                    if (confirmDeleteModal) confirmDeleteModal.classList.add('hidden');
+                });
+            } else { console.error("cancelDeleteBtn not found at event listener setup."); }
+        });
     </script>
 </body>
 </html>
-
