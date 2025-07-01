@@ -323,8 +323,19 @@
 
         // アプリケーションIDとFirebase設定はCanvas環境から提供されます
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-
+        // Firebase設定を安全にパースし、エラーハンドリングを追加
+        let firebaseConfig = {};
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                firebaseConfig = JSON.parse(__firebase_config);
+            } else {
+                console.warn("Firebase config (__firebase_config) is undefined or empty. Using empty config.");
+            }
+        } catch (e) {
+            console.error("Error parsing __firebase_config:", e);
+            alert("Firebase設定の読み込み中にエラーが発生しました。");
+        }
+        
         // Client-side data storage (Firestoreから取得したデータで上書きされます)
         let allFacilities = []; // 初期データは空にし、Firestoreから取得します
 
@@ -462,6 +473,13 @@
 
         // Firebaseの初期化と認証状態の監視
         const initFirebase = () => {
+            // firebaseConfigが空でないことを確認
+            if (Object.keys(firebaseConfig).length === 0) {
+                console.error("Firebase initialization skipped: firebaseConfig is empty.");
+                alert("Firebase設定が不足しているため、アプリケーションの機能が制限されます。");
+                return; // Firebaseの初期化をスキップ
+            }
+
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
@@ -471,19 +489,16 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
-                        // console.log("User logged in. UID:", userId); // User IDログを削除
                     } else {
                         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                             try {
                                 const credential = await signInWithCustomToken(auth, __initial_auth_token);
                                 userId = credential.user.uid;
-                                // console.log("Signed in with custom token. UID:", userId); // User IDログを削除
                             } catch (error) {
                                 console.error("Error signing in with custom token:", error);
                                 try {
                                     const anonCredential = await signInAnonymously(auth);
                                     userId = anonCredential.user.uid;
-                                    // console.log("Signed in anonymously after custom token failure. UID:", userId); // User IDログを削除
                                 } catch (anonError) {
                                     console.error("Error signing in anonymously:", anonError);
                                     alert("認証エラーが発生しました。");
@@ -493,7 +508,6 @@
                             try {
                                 const anonCredential = await signInAnonymously(auth);
                                 userId = anonCredential.user.uid;
-                                // console.log("Signed in anonymously. UID:", userId); // User IDログを削除
                             } catch (anonError) {
                                 console.error("Error signing in anonymously:", anonError);
                                 alert("認証エラーが発生しました。");
